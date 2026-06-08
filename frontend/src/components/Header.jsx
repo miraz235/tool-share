@@ -1,17 +1,29 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth.jsx";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Wrench, Search, Sparkles, Plus, LogOut, LayoutDashboard, User as UserIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Wrench, Search, Sparkles, Plus, LogOut, LayoutDashboard, User as UserIcon, MessageSquare, Shield } from "lucide-react";
 
 export default function Header() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = () => api.get("/messages/unread/count").then(r => setUnread(r.data.count)).catch(() => {});
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, [user]);
 
   const initials = user?.name?.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase() || "U";
 
@@ -38,6 +50,19 @@ export default function Header() {
             <Link to="/dashboard" data-testid="nav-dashboard"
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${loc.pathname === '/dashboard' ? 'bg-brand-primary/10 text-brand-primary' : 'text-brand-muted hover:text-brand-text hover:bg-brand-subtle'}`}>
               <LayoutDashboard className="w-4 h-4 inline mr-1.5 -mt-0.5" /> Dashboard
+            </Link>
+          )}
+          {user && (
+            <Link to="/messages" data-testid="nav-messages"
+              className={`relative px-4 py-2 rounded-xl text-sm font-medium transition-colors ${loc.pathname === '/messages' ? 'bg-brand-primary/10 text-brand-primary' : 'text-brand-muted hover:text-brand-text hover:bg-brand-subtle'}`}>
+              <MessageSquare className="w-4 h-4 inline mr-1.5 -mt-0.5" /> Messages
+              {unread > 0 && <Badge className="absolute -top-1 -right-1 bg-brand-secondary text-white border-0 text-[10px] h-4 min-w-[16px] px-1">{unread}</Badge>}
+            </Link>
+          )}
+          {user?.is_admin && (
+            <Link to="/admin" data-testid="nav-admin"
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${loc.pathname === '/admin' ? 'bg-brand-primary/10 text-brand-primary' : 'text-brand-muted hover:text-brand-text hover:bg-brand-subtle'}`}>
+              <Shield className="w-4 h-4 inline mr-1.5 -mt-0.5" /> Admin
             </Link>
           )}
         </nav>

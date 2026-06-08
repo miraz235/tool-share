@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Calendar, Heart, Package, Trash2 } from "lucide-react";
+import { Plus, Calendar, Heart, Package, Trash2, ShieldCheck, ShieldAlert } from "lucide-react";
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -32,6 +32,15 @@ export default function Dashboard() {
   }, [user]);
 
   if (!user) return null;
+
+  const startVerification = async () => {
+    try {
+      const r = await api.post("/identity/verify/start", { return_url: window.location.origin + "/dashboard" });
+      window.location.href = r.data.url;
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Couldn't start verification");
+    }
+  };
 
   const deleteTool = async (id) => {
     if (!window.confirm("Delete this listing?")) return;
@@ -84,6 +93,23 @@ export default function Dashboard() {
             <Link to="/list"><Plus className="w-4 h-4 mr-1" /> List a tool</Link>
           </Button>
         </div>
+
+        {/* Identity verification banner */}
+        {!user.is_verified && (
+          <div className="bg-brand-secondary/10 border border-brand-secondary/30 rounded-2xl p-5 mb-6 flex items-center gap-4" data-testid="verify-banner">
+            <div className="w-12 h-12 rounded-xl bg-brand-secondary/15 flex items-center justify-center shrink-0">
+              <ShieldAlert className="w-6 h-6 text-brand-secondary" />
+            </div>
+            <div className="flex-1">
+              <div className="font-heading font-bold text-brand-text">Verify your identity</div>
+              <p className="text-sm text-brand-muted">Verified users get more booking requests and access to higher-value tools.</p>
+            </div>
+            <Button onClick={startVerification} data-testid="start-verification-btn"
+              className="bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold">
+              <ShieldCheck className="w-4 h-4 mr-1.5" /> Verify with Stripe
+            </Button>
+          </div>
+        )}
 
         <Tabs defaultValue="listings" className="w-full">
           <TabsList className="bg-white border border-brand-border rounded-xl p-1 mb-6">

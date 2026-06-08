@@ -1,5 +1,6 @@
 """Seed demo data for ToolShare - creates a few users and tool listings."""
-import os, sys
+import os
+import sys
 sys.path.insert(0, os.path.dirname(__file__))
 import asyncio
 import uuid

@@ -15,6 +15,8 @@ import Register from "@/pages/Register";
 import Profile from "@/pages/Profile";
 import AIAssistant from "@/pages/AIAssistant";
 import BookingDetail from "@/pages/BookingDetail";
+import Messages from "@/pages/Messages";
+import Admin from "@/pages/Admin";
 
 function AuthCallback() {
   const navigate = useNavigate();
@@ -73,6 +75,8 @@ function AppRouter() {
       <Route path="/profile/:id" element={<Profile />} />
       <Route path="/ai" element={<AIAssistant />} />
       <Route path="/bookings/:id" element={<BookingDetail />} />
+      <Route path="/messages" element={<Messages />} />
+      <Route path="/admin" element={<Admin />} />
     </Routes>
   );
 }

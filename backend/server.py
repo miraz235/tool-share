@@ -23,6 +23,12 @@ from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
+from p1_features import (
+    build_p1_router,
+    has_booking_conflict,
+    send_email_mocked,
+)
+
 # -----------------------------------------------------------------------------
 # Setup
 # -----------------------------------------------------------------------------
@@ -315,6 +321,8 @@ def serialize_user(user: dict) -> dict:
         "rating_avg": user.get("rating_avg", 0.0),
         "rating_count": user.get("rating_count", 0),
         "is_verified": user.get("is_verified", False),
+        "is_admin": user.get("is_admin", False),
+        "is_suspended": user.get("is_suspended", False),
         "created_at": user.get("created_at", ""),
     }
 
@@ -634,6 +642,11 @@ async def create_booking(payload: BookingIn, user: dict = Depends(current_user))
         raise HTTPException(404, "Tool not found")
     if tool["owner_id"] == user["id"]:
         raise HTTPException(400, "Cannot book your own tool")
+    if payload.start_date > payload.end_date:
+        raise HTTPException(400, "End date must be after start date")
+    # Anti-double-booking guard
+    if await has_booking_conflict(db, payload.tool_id, payload.start_date, payload.end_date):
+        raise HTTPException(409, "Tool already booked for these dates")
     days = _days_between(payload.start_date, payload.end_date)
     total = days * float(tool["daily_price"])
     deposit = float(tool.get("security_deposit", 0))
@@ -651,10 +664,20 @@ async def create_booking(payload: BookingIn, user: dict = Depends(current_user))
         "pickup_method": payload.pickup_method,
         "delivery_address": payload.delivery_address,
         "message_to_owner": payload.message_to_owner,
+        "paid": False,
         "created_at": now_iso(),
         "updated_at": now_iso(),
     }
     await db.bookings.insert_one(doc)
+    # Notify owner (MOCKED email)
+    owner = await get_user_by_id(tool["owner_id"])
+    if owner:
+        await send_email_mocked(
+            owner["email"],
+            f"New booking request for {tool['title']}",
+            f"{user['name']} requested {tool['title']} from {payload.start_date} to {payload.end_date}. Review it on ToolShare.",
+            db=db
+        )
     doc.pop("_id", None)
     return doc
 
@@ -695,10 +718,28 @@ async def update_booking_status(booking_id: str, payload: BookingStatusIn, user:
         raise HTTPException(403, "Only owner can approve/decline")
     if payload.status == "cancelled" and user["id"] not in (b["renter_id"], b["owner_id"]):
         raise HTTPException(403, "Forbidden")
+    # Re-check overlap before approving (a different request may have been approved meanwhile)
+    if payload.status == "approved":
+        if await has_booking_conflict(db, b["tool_id"], b["start_date"], b["end_date"], exclude_booking_id=booking_id):
+            raise HTTPException(409, "Another approved booking conflicts with these dates")
     await db.bookings.update_one(
         {"id": booking_id},
         {"$set": {"status": payload.status, "updated_at": now_iso()}}
     )
+    # Notify counterparty (MOCKED)
+    renter = await get_user_by_id(b["renter_id"])
+    owner = await get_user_by_id(b["owner_id"])
+    if payload.status == "approved" and renter:
+        await send_email_mocked(renter["email"], "Your booking was approved!",
+            f"Your booking {booking_id} was approved. Pay to confirm.", db=db)
+    elif payload.status == "declined" and renter:
+        await send_email_mocked(renter["email"], "Your booking was declined",
+            f"Your booking {booking_id} was declined.", db=db)
+    elif payload.status == "cancelled":
+        other = owner if user["id"] == b["renter_id"] else renter
+        if other:
+            await send_email_mocked(other["email"], "Booking cancelled",
+                f"Booking {booking_id} was cancelled by the {'renter' if user['id']==b['renter_id'] else 'owner'}.", db=db)
     return {"ok": True, "status": payload.status}
 
 
@@ -917,6 +958,13 @@ async def ai_recommend(payload: AIRecommendIn):
 
 
 # -----------------------------------------------------------------------------
+# Mount P1 router (messaging, payments, identity, admin)
+# -----------------------------------------------------------------------------
+p1_router = build_p1_router(db=db, current_user_dep=current_user, get_user_by_id=get_user_by_id)
+api.include_router(p1_router)
+
+
+# -----------------------------------------------------------------------------
 # Startup / Shutdown
 # -----------------------------------------------------------------------------
 @app.on_event("startup")
@@ -928,8 +976,12 @@ async def on_startup():
     await db.tools.create_index("owner_id")
     await db.tools.create_index("category")
     await db.bookings.create_index("id", unique=True)
+    await db.bookings.create_index("tool_id")
     await db.sessions.create_index("session_token", unique=True)
     await db.favorites.create_index([("user_id", 1), ("tool_id", 1)], unique=True)
+    await db.messages.create_index("booking_id")
+    await db.messages.create_index("recipient_id")
+    await db.payment_transactions.create_index("session_id", unique=True)
     init_storage()
 
 
