@@ -27,8 +27,8 @@ export function AuthProvider({ children }) {
     if (getToken()) {
       checkAuth();
     } else {
-      // Also check cookie-based session (Google)
-      checkAuth();
+      // No token: skip /auth/me probe to keep console clean on public pages
+      setLoading(false);
     }
   }, [checkAuth]);
 
