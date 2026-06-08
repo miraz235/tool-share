@@ -1,0 +1,210 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/auth.jsx";
+import { api, imageUrl } from "@/lib/api";
+import Header from "@/components/Header";
+import ToolCard from "@/components/ToolCard";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { Plus, Calendar, Heart, Package, Trash2 } from "lucide-react";
+
+export default function Dashboard() {
+  const { user, loading } = useAuth();
+  const nav = useNavigate();
+  const [myTools, setMyTools] = useState([]);
+  const [renterBookings, setRenterBookings] = useState([]);
+  const [ownerBookings, setOwnerBookings] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+
+  useEffect(() => {
+    if (!loading && !user) nav("/login");
+  }, [loading, user, nav]);
+
+  useEffect(() => {
+    if (!user) return;
+    api.get("/my/tools").then(r => setMyTools(r.data));
+    api.get("/bookings", { params: { role: "renter" } }).then(r => setRenterBookings(r.data));
+    api.get("/bookings", { params: { role: "owner" } }).then(r => setOwnerBookings(r.data));
+    api.get("/favorites").then(r => setFavorites(r.data));
+  }, [user]);
+
+  if (!user) return null;
+
+  const deleteTool = async (id) => {
+    if (!window.confirm("Delete this listing?")) return;
+    try {
+      await api.delete(`/tools/${id}`);
+      setMyTools(myTools.filter(t => t.id !== id));
+      toast.success("Listing deleted");
+    } catch { toast.error("Failed"); }
+  };
+
+  const updateBookingStatus = async (id, status) => {
+    try {
+      await api.put(`/bookings/${id}/status`, { status });
+      const r = await api.get("/bookings", { params: { role: "owner" } });
+      setOwnerBookings(r.data);
+      toast.success(`Booking ${status}`);
+    } catch { toast.error("Failed"); }
+  };
+
+  const statusColor = {
+    pending: "bg-yellow-100 text-yellow-800",
+    approved: "bg-green-100 text-green-800",
+    declined: "bg-red-100 text-red-700",
+    cancelled: "bg-gray-100 text-gray-700",
+    completed: "bg-blue-100 text-blue-700",
+  };
+
+  const initials = user.name?.split(" ").map(n => n[0]).slice(0,2).join("");
+
+  return (
+    <div className="min-h-screen bg-brand-bg">
+      <Header />
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-12">
+        {/* Hero */}
+        <div className="flex items-center gap-6 mb-10 bg-white border border-brand-border rounded-2xl p-6">
+          <Avatar className="h-20 w-20">
+            {user.picture && <AvatarImage src={user.picture} />}
+            <AvatarFallback className="bg-brand-primary text-white font-heading font-bold text-2xl">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <h1 className="font-heading text-3xl font-extrabold">Welcome, {user.name.split(" ")[0]}</h1>
+            <p className="text-brand-muted">{user.email}</p>
+            <div className="flex gap-4 mt-3 text-sm">
+              <div><span className="font-bold">{myTools.length}</span> <span className="text-brand-muted">listings</span></div>
+              <div><span className="font-bold">{renterBookings.length}</span> <span className="text-brand-muted">rentals</span></div>
+              <div><span className="font-bold">{favorites.length}</span> <span className="text-brand-muted">saved</span></div>
+            </div>
+          </div>
+          <Button asChild className="bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold" data-testid="dashboard-list-btn">
+            <Link to="/list"><Plus className="w-4 h-4 mr-1" /> List a tool</Link>
+          </Button>
+        </div>
+
+        <Tabs defaultValue="listings" className="w-full">
+          <TabsList className="bg-white border border-brand-border rounded-xl p-1 mb-6">
+            <TabsTrigger value="listings" data-testid="tab-listings" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
+              <Package className="w-4 h-4 mr-1.5" /> My listings
+            </TabsTrigger>
+            <TabsTrigger value="renter" data-testid="tab-renter" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
+              <Calendar className="w-4 h-4 mr-1.5" /> My rentals
+            </TabsTrigger>
+            <TabsTrigger value="owner" data-testid="tab-owner" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
+              Bookings on my tools
+            </TabsTrigger>
+            <TabsTrigger value="favorites" data-testid="tab-favorites" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
+              <Heart className="w-4 h-4 mr-1.5" /> Favorites
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="listings">
+            {myTools.length === 0 ? (
+              <EmptyState icon={Package} title="No listings yet" cta="List your first tool" to="/list" />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {myTools.map(t => (
+                  <div key={t.id} className="relative">
+                    <ToolCard tool={t} />
+                    <Button variant="outline" size="sm" onClick={() => deleteTool(t.id)}
+                      data-testid={`delete-tool-${t.id}`}
+                      className="absolute top-3 left-3 z-10 rounded-lg bg-white border-brand-border">
+                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="renter">
+            {renterBookings.length === 0 ? (
+              <EmptyState icon={Calendar} title="No rentals yet" cta="Browse tools" to="/browse" />
+            ) : (
+              <div className="space-y-3">
+                {renterBookings.map(b => <BookingRow key={b.id} booking={b} role="renter" />)}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="owner">
+            {ownerBookings.length === 0 ? (
+              <EmptyState icon={Package} title="No bookings yet" cta="List a tool" to="/list" />
+            ) : (
+              <div className="space-y-3">
+                {ownerBookings.map(b => (
+                  <BookingRow key={b.id} booking={b} role="owner" onUpdateStatus={updateBookingStatus} />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="favorites">
+            {favorites.length === 0 ? (
+              <EmptyState icon={Heart} title="No favorites yet" cta="Discover tools" to="/browse" />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {favorites.map(t => <ToolCard key={t.id} tool={t} />)}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, cta, to }) {
+  return (
+    <div className="bg-white border border-brand-border rounded-2xl p-16 text-center">
+      <Icon className="w-12 h-12 mx-auto text-brand-muted/40 mb-4" />
+      <h3 className="font-heading text-xl font-bold mb-1">{title}</h3>
+      <Button asChild className="mt-4 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">
+        <Link to={to}>{cta}</Link>
+      </Button>
+    </div>
+  );
+}
+
+function BookingRow({ booking, role, onUpdateStatus }) {
+  const statusColor = {
+    pending: "bg-yellow-100 text-yellow-800",
+    approved: "bg-green-100 text-green-800",
+    declined: "bg-red-100 text-red-700",
+    cancelled: "bg-gray-100 text-gray-700",
+    completed: "bg-blue-100 text-blue-700",
+  };
+  return (
+    <div className="bg-white border border-brand-border rounded-2xl p-5 flex items-center gap-4" data-testid={`booking-row-${booking.id}`}>
+      <div className="w-20 h-20 bg-brand-subtle rounded-xl overflow-hidden shrink-0">
+        {booking.tool?.images?.[0] && <img src={imageUrl(booking.tool.images[0])} alt="" className="w-full h-full object-cover" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <Link to={`/tools/${booking.tool_id}`} className="font-heading font-bold hover:underline">{booking.tool?.title}</Link>
+          <Badge className={`${statusColor[booking.status]} border-0 capitalize`}>{booking.status}</Badge>
+        </div>
+        <div className="text-sm text-brand-muted">
+          {booking.start_date} → {booking.end_date} · ${booking.total_price} ·
+          {role === "renter" ? ` from ${booking.counterparty?.name}` : ` for ${booking.counterparty?.name}`}
+        </div>
+      </div>
+      {role === "owner" && booking.status === "pending" && (
+        <div className="flex gap-2">
+          <Button onClick={() => onUpdateStatus(booking.id, "approved")}
+            data-testid={`approve-${booking.id}`}
+            className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">Approve</Button>
+          <Button onClick={() => onUpdateStatus(booking.id, "declined")} variant="outline"
+            data-testid={`decline-${booking.id}`}
+            className="rounded-xl">Decline</Button>
+        </div>
+      )}
+      <Button asChild variant="ghost" className="rounded-xl" data-testid={`view-booking-${booking.id}`}>
+        <Link to={`/bookings/${booking.id}`}>View</Link>
+      </Button>
+    </div>
+  );
+}

@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background-color: #FDFCF7;
+    color: #1A201D;
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+    :root {
+        --background: 48 42% 98%;
+        --foreground: 130 13% 11%;
+        --card: 0 0% 100%;
+        --card-foreground: 130 13% 11%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 130 13% 11%;
+        --primary: 162 35% 26%;
+        --primary-foreground: 48 42% 98%;
+        --secondary: 48 16% 96%;
+        --secondary-foreground: 130 13% 11%;
+        --muted: 48 16% 96%;
+        --muted-foreground: 140 5% 35%;
+        --accent: 18 65% 51%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 45 18% 87%;
+        --input: 45 18% 87%;
+        --ring: 162 35% 26%;
+        --radius: 0.75rem;
+    }
+}
+
+@layer base {
+    * { @apply border-border; }
+    body { @apply bg-brand-bg text-brand-text; }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Manrope', sans-serif; color: #1A201D; }
+}
+
+@layer utilities {
+    .glass-header {
+        background-color: rgba(253, 252, 247, 0.8);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+    .tool-card-shadow {
+        box-shadow: 0 1px 2px rgba(26, 32, 29, 0.04);
+    }
+    .tool-card-shadow:hover {
+        box-shadow: 0 10px 30px rgba(26, 32, 29, 0.08);
+    }
+    .text-balance { text-wrap: balance; }
+}
+
+/* Leaflet customization */
+.leaflet-container {
+    font-family: "DM Sans", sans-serif;
+    border-radius: 1rem;
+    z-index: 0;
+}
+.tool-marker-pin {
+    background: #D36135;
+    color: #fff;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-weight: 700;
+    font-size: 12px;
+    border: 2px solid #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+    white-space: nowrap;
+}
+.tool-marker-pin.is-active {
+    background: #2D5A4C;
+}
+
+/* Hide default debug wrappers */
+@layer base {
+    [data-debug-wrapper="true"] { display: contents !important; }
+}

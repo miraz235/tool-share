@@ -1,0 +1,297 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
+import { api, imageUrl } from "@/lib/api";
+import { useAuth } from "@/lib/auth.jsx";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import MapView from "@/components/MapView";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Star, MapPin, Heart, Calendar as CalIcon, Package, Truck, ShieldCheck } from "lucide-react";
+
+export default function ToolDetail() {
+  const { id } = useParams();
+  const nav = useNavigate();
+  const { user } = useAuth();
+  const [tool, setTool] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [activeImg, setActiveImg] = useState(0);
+  const [dateRange, setDateRange] = useState();
+  const [pickupMethod, setPickupMethod] = useState("pickup");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [message, setMessage] = useState("");
+  const [favorite, setFavorite] = useState(false);
+  const [booking, setBooking] = useState(false);
+
+  useEffect(() => {
+    api.get(`/tools/${id}`).then(r => setTool(r.data)).catch(() => toast.error("Tool not found"));
+    api.get(`/reviews`, { params: { tool_id: id } }).then(r => setReviews(r.data)).catch(() => {});
+  }, [id]);
+
+  useEffect(() => {
+    if (!user) return;
+    api.get("/favorites").then(r => {
+      setFavorite(r.data.some(t => t.id === id));
+    }).catch(() => {});
+  }, [user, id]);
+
+  if (!tool) {
+    return (
+      <div className="min-h-screen bg-brand-bg">
+        <Header />
+        <div className="p-16 text-center text-brand-muted">Loading…</div>
+      </div>
+    );
+  }
+
+  const days = dateRange?.from && dateRange?.to
+    ? Math.max(1, Math.round((dateRange.to - dateRange.from) / 86400000) + 1)
+    : 0;
+  const total = days * tool.daily_price;
+
+  const submitBooking = async () => {
+    if (!user) { nav("/login"); return; }
+    if (!dateRange?.from || !dateRange?.to) {
+      toast.error("Pick rental dates");
+      return;
+    }
+    setBooking(true);
+    try {
+      const res = await api.post("/bookings", {
+        tool_id: tool.id,
+        start_date: dateRange.from.toISOString().split('T')[0],
+        end_date: dateRange.to.toISOString().split('T')[0],
+        pickup_method: pickupMethod,
+        delivery_address: pickupMethod === "delivery" ? deliveryAddress : null,
+        message_to_owner: message,
+      });
+      toast.success("Booking request sent!");
+      nav(`/bookings/${res.data.id}`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to create booking");
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  const toggleFav = async () => {
+    if (!user) { nav("/login"); return; }
+    try {
+      if (favorite) {
+        await api.delete(`/favorites/${tool.id}`);
+        setFavorite(false);
+        toast.success("Removed from favorites");
+      } else {
+        await api.post(`/favorites/${tool.id}`);
+        setFavorite(true);
+        toast.success("Saved to favorites");
+      }
+    } catch {}
+  };
+
+  const fallbackImg = "https://images.unsplash.com/photo-1563440205176-c565cd7302e4?w=1200&q=80&auto=format";
+  const images = tool.images?.length ? tool.images : [null];
+  const heroImg = images[activeImg] ? imageUrl(images[activeImg]) : fallbackImg;
+
+  return (
+    <div className="min-h-screen bg-brand-bg">
+      <Header />
+
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-8">
+        {/* Title bar */}
+        <div className="flex items-start justify-between mb-6 gap-4">
+          <div>
+            <h1 className="font-heading text-3xl md:text-4xl font-extrabold tracking-tight" data-testid="tool-title">{tool.title}</h1>
+            <div className="flex items-center gap-3 mt-2 text-sm text-brand-muted">
+              {tool.rating_count > 0 && (
+                <span className="flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 fill-brand-secondary text-brand-secondary" />
+                  <span className="font-semibold text-brand-text">{tool.rating_avg.toFixed(1)}</span>
+                  <span>({tool.rating_count})</span>
+                </span>
+              )}
+              <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {tool.location.city}{tool.location.postal_code ? `, ${tool.location.postal_code}` : ''}</span>
+              <span className="capitalize">· {tool.condition}</span>
+            </div>
+          </div>
+          <Button variant="outline" onClick={toggleFav} data-testid="favorite-toggle"
+            className="rounded-xl border-brand-border">
+            <Heart className={`w-4 h-4 mr-2 ${favorite ? 'fill-brand-secondary text-brand-secondary' : ''}`} />
+            {favorite ? "Saved" : "Save"}
+          </Button>
+        </div>
+
+        {/* Gallery */}
+        <div className="grid md:grid-cols-[1fr_280px] gap-3 mb-10">
+          <div className="aspect-[16/10] rounded-2xl overflow-hidden bg-brand-subtle">
+            <img src={heroImg} alt={tool.title} className="w-full h-full object-cover" />
+          </div>
+          {images.length > 1 && (
+            <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
+              {images.slice(0, 4).map((img, i) => (
+                <button key={i} onClick={() => setActiveImg(i)}
+                  className={`aspect-square md:aspect-[16/10] rounded-xl overflow-hidden bg-brand-subtle border-2 ${i === activeImg ? 'border-brand-primary' : 'border-transparent'}`}>
+                  <img src={img ? imageUrl(img) : fallbackImg} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="grid lg:grid-cols-[1fr_400px] gap-10">
+          {/* Left: details */}
+          <div>
+            {/* Owner */}
+            <div className="bg-white border border-brand-border rounded-2xl p-6 mb-6 flex items-center justify-between">
+              <Link to={`/profile/${tool.owner_id}`} className="flex items-center gap-4">
+                <Avatar className="h-14 w-14">
+                  {tool.owner?.picture && <AvatarImage src={tool.owner.picture} />}
+                  <AvatarFallback className="bg-brand-primary text-white font-semibold">
+                    {tool.owner?.name?.split(" ").map(n => n[0]).slice(0,2).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-heading font-bold text-brand-text">{tool.owner?.name}</div>
+                  <div className="text-sm text-brand-muted flex items-center gap-2">
+                    {tool.owner?.is_verified && <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-brand-primary" /> Verified</span>}
+                    {tool.owner?.rating_count > 0 && <span>· {tool.owner.rating_avg.toFixed(1)} ★ ({tool.owner.rating_count})</span>}
+                  </div>
+                </div>
+              </Link>
+            </div>
+
+            <h2 className="font-heading text-xl font-bold mb-3">About this tool</h2>
+            <p className="text-brand-muted leading-relaxed whitespace-pre-line mb-8">{tool.description}</p>
+
+            <h2 className="font-heading text-xl font-bold mb-3">Pickup & delivery</h2>
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="bg-white border border-brand-border rounded-2xl p-5">
+                <Package className="w-5 h-5 text-brand-primary mb-2" />
+                <div className="font-semibold">{tool.pickup_available ? "Pickup available" : "No pickup"}</div>
+                <div className="text-sm text-brand-muted">{tool.location.city}</div>
+              </div>
+              <div className="bg-white border border-brand-border rounded-2xl p-5">
+                <Truck className="w-5 h-5 text-brand-primary mb-2" />
+                <div className="font-semibold">{tool.delivery_available ? `Delivery (${tool.delivery_radius_km}km)` : "No delivery"}</div>
+                <div className="text-sm text-brand-muted">{tool.delivery_available ? "By owner" : "—"}</div>
+              </div>
+            </div>
+
+            <h2 className="font-heading text-xl font-bold mb-3">Location</h2>
+            <div className="h-72 rounded-2xl overflow-hidden mb-8">
+              <MapView tools={[tool]} center={[tool.location.lat, tool.location.lng]} />
+            </div>
+
+            <h2 className="font-heading text-xl font-bold mb-3">Reviews ({reviews.length})</h2>
+            {reviews.length === 0 ? (
+              <div className="text-brand-muted text-sm">No reviews yet. Be the first to review this tool.</div>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map(r => (
+                  <div key={r.id} className="bg-white border border-brand-border rounded-2xl p-5">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Avatar className="h-8 w-8">
+                        {r.reviewer?.picture && <AvatarImage src={r.reviewer.picture} />}
+                        <AvatarFallback className="text-xs">{r.reviewer?.name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="font-semibold text-sm">{r.reviewer?.name}</div>
+                      <div className="flex items-center gap-0.5 ml-auto">
+                        {[1,2,3,4,5].map(i => (
+                          <Star key={i} className={`w-3.5 h-3.5 ${i <= r.rating ? 'fill-brand-secondary text-brand-secondary' : 'text-brand-border'}`} />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-brand-muted">{r.comment}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right: booking card */}
+          <div>
+            <div className="sticky top-24 bg-white border border-brand-border rounded-2xl p-6 shadow-sm">
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="font-heading text-3xl font-extrabold text-brand-secondary">${tool.daily_price}</span>
+                <span className="text-brand-muted text-sm">/ day</span>
+              </div>
+              {tool.security_deposit > 0 && (
+                <div className="text-xs text-brand-muted mb-4">+ ${tool.security_deposit} refundable deposit</div>
+              )}
+
+              <div className="border border-brand-border rounded-xl p-3 mb-4">
+                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">Rental dates</Label>
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
+                  className="mt-2"
+                  data-testid="booking-calendar"
+                />
+              </div>
+
+              <div className="mb-4">
+                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-2 block">Method</Label>
+                <RadioGroup value={pickupMethod} onValueChange={setPickupMethod} className="grid grid-cols-2 gap-2">
+                  {tool.pickup_available && (
+                    <label className={`border border-brand-border rounded-xl p-3 cursor-pointer ${pickupMethod === 'pickup' ? 'bg-brand-primary/5 border-brand-primary' : ''}`}>
+                      <RadioGroupItem value="pickup" className="sr-only" />
+                      <Package className="w-4 h-4 mb-1" />
+                      <div className="text-sm font-semibold">Pickup</div>
+                    </label>
+                  )}
+                  {tool.delivery_available && (
+                    <label className={`border border-brand-border rounded-xl p-3 cursor-pointer ${pickupMethod === 'delivery' ? 'bg-brand-primary/5 border-brand-primary' : ''}`}>
+                      <RadioGroupItem value="delivery" className="sr-only" />
+                      <Truck className="w-4 h-4 mb-1" />
+                      <div className="text-sm font-semibold">Delivery</div>
+                    </label>
+                  )}
+                </RadioGroup>
+              </div>
+
+              {pickupMethod === "delivery" && (
+                <div className="mb-4">
+                  <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">Delivery address</Label>
+                  <Textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)}
+                    placeholder="Street, city, postal code"
+                    className="mt-1 rounded-xl" data-testid="delivery-address-input" />
+                </div>
+              )}
+
+              <div className="mb-4">
+                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">Message to owner</Label>
+                <Textarea value={message} onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Hi! I'd like to use this tool for…"
+                  className="mt-1 rounded-xl" data-testid="message-input" />
+              </div>
+
+              {days > 0 && (
+                <div className="bg-brand-subtle rounded-xl p-4 mb-4 text-sm space-y-1">
+                  <div className="flex justify-between"><span>${tool.daily_price} × {days} day{days > 1 ? 's' : ''}</span><span>${total}</span></div>
+                  {tool.security_deposit > 0 && <div className="flex justify-between text-brand-muted"><span>Deposit (refundable)</span><span>${tool.security_deposit}</span></div>}
+                  <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>Total today</span><span>${total + (tool.security_deposit || 0)}</span></div>
+                </div>
+              )}
+
+              <Button onClick={submitBooking} disabled={booking}
+                data-testid="request-booking-btn"
+                className="w-full bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold h-12">
+                {booking ? "Sending…" : user ? "Request to book" : "Sign in to book"}
+              </Button>
+              <p className="text-xs text-brand-muted text-center mt-3">You won't be charged yet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}

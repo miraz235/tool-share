@@ -1,0 +1,123 @@
+{
+  "theme": "light",
+  "archetype": "Archetype 1 (Organic & Earthy)",
+  "colors": {
+    "background": "#FDFCF7",
+    "surface": "#FFFFFF",
+    "primary": "#2D5A4C",
+    "primary_hover": "#224439",
+    "secondary": "#D36135",
+    "secondary_hover": "#BA552F",
+    "text_primary": "#1A201D",
+    "text_secondary": "#545C58",
+    "border": "#E2E0D8",
+    "success": "#34C759",
+    "warning": "#FF9500",
+    "error": "#FF3B30",
+    "map_marker": "#D36135"
+  },
+  "typography": {
+    "heading_font": "Manrope",
+    "body_font": "DM Sans",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap",
+    "hierarchy": {
+      "h1": "font-heading text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#1A201D]",
+      "h2": "font-heading text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#1A201D]",
+      "h3": "font-heading text-xl sm:text-2xl font-bold tracking-tight text-[#1A201D]",
+      "h4": "font-heading text-lg sm:text-xl font-semibold text-[#1A201D]",
+      "body": "font-sans text-base font-normal leading-relaxed text-[#545C58]",
+      "small": "font-sans text-sm font-medium text-[#545C58]",
+      "overline": "font-sans text-xs font-bold uppercase tracking-[0.2em] text-[#545C58]"
+    }
+  },
+  "layout_and_spacing": {
+    "spacing_scale": "p-1, p-2, p-4, p-6, p-8, p-12, p-16, p-24, p-32",
+    "container_padding": "p-6 md:p-8",
+    "card_radius": "rounded-2xl",
+    "button_radius": "rounded-xl",
+    "grid_strategy": "The 'Bento' Grid Protocol - Generous Spacing with gap-6 to gap-8. Prioritize asymmetry in marketing sections. Strict dense grids (gap-4) for user dashboard.",
+    "image_constraints": "Mobile height limit max-h-[80vh] md:max-h-none."
+  },
+  "surface_strategies": {
+    "header": "Glassmorphism (Crystal): backdrop-blur-xl bg-[#FDFCF7]/80 border-b border-[#E2E0D8]/50 shadow-sm",
+    "cards": "Neumorphism (Tactile) variant: bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 border border-[#E2E0D8]",
+    "modals": "Solid surface with heavy ambient shadow shadow-[0_8px_32px_rgba(0,0,0,0.12)] bg-white rounded-2xl",
+    "dashboard_widgets": "Flat background bg-white border border-[#E2E0D8] rounded-2xl p-6"
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#2D5A4C] text-white hover:bg-[#224439] rounded-xl px-6 py-3 font-semibold transition-all shadow-sm focus:ring-2 focus:ring-[#2D5A4C] focus:ring-offset-2",
+      "secondary": "bg-white text-[#1A201D] border border-[#E2E0D8] hover:bg-[#F9F8F4] rounded-xl px-6 py-3 font-semibold transition-all focus:ring-2 focus:ring-[#2D5A4C] focus:ring-offset-2"
+    },
+    "inputs": "Shadcn standard input heavily customized: border-[#E2E0D8] bg-white rounded-xl focus:ring-2 focus:ring-[#2D5A4C] focus:border-transparent transition-all px-4 py-3 text-base",
+    "tool_card": "Image top (h-48 or 56 object-cover rounded-t-2xl), Details bottom (p-6). Price in secondary color (#D36135). Overlay status tag if unavailable.",
+    "map_view": "Split screen layout for discovery: Left 40% scrollable tool list with gap-6, Right 60% sticky Map view with custom markers.",
+    "badges": "Rounded-full px-3 py-1 text-sm font-semibold. Default: bg-[#F9F8F4] text-[#545C58] border border-[#E2E0D8]. Active/Condition: bg-[#2D5A4C]/10 text-[#2D5A4C]."
+  },
+  "motion_and_interaction": {
+    "hover": "Subtle transform -translate-y-1, increased shadow on cards.",
+    "page_transitions": "Use Framer Motion for smooth staggered entrance animations on lists.",
+    "focus": "High contrast ring focus:ring-2 focus:ring-[#2D5A4C] focus:ring-offset-2."
+  },
+  "icons": "lucide-react (default for Shadcn) or @phosphor-icons/react for premium feel.",
+  "testing": "All interactive elements MUST include a data-testid attribute in kebab-case, role-based (e.g., data-testid='book-tool-button').",
+  "media": {
+    "hero_images": [
+      {
+        "url": "https://images.unsplash.com/photo-1561297331-a9c00b9c2c44?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwzfHxjYXJwZW50ZXIlMjB3b3JraW5nJTIwd2l0aCUyMHdvb2QlMjBzdW5ueXxlbnwwfHx8fDE3ODA5NTE5ODZ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "hero",
+        "description": "Carpenter working with wood - great for hero background showing tools in action."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHxjYXJwZW50ZXIlMjB3b3JraW5nJTIwd2l0aCUyMHdvb2QlMjBzdW5ueXxlbnwwfHx8fDE3ODA5NTE5ODZ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "hero_alternative",
+        "description": "Man with power tool - good secondary hero image or for 'How it works' section."
+      }
+    ],
+    "tool_categories_or_products": [
+      {
+        "url": "https://images.unsplash.com/photo-1559295758-d77a698a2dff?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwzfHxwb3dlciUyMHRvb2xzJTIwb24lMjB3b3JrYmVuY2h8ZW58MHx8fHwxNzgwOTUxOTg2fDA&ixlib=rb-4.1.0&q=85",
+        "category": "product_power_tools",
+        "description": "Blue Makita wood planer - use for power tool listing or category."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1563440205176-c565cd7302e4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHw0fHxwb3dlciUyMHRvb2xzJTIwb24lMjB3b3JrYmVuY2h8ZW58MHx8fHwxNzgwOTUxOTg2fDA&ixlib=rb-4.1.0&q=85",
+        "category": "product_hand_tools",
+        "description": "Combination wrenches - use for hand tools listing or category."
+      },
+      {
+        "url": "https://images.pexels.com/photos/4503269/pexels-photo-4503269.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "product_gardening",
+        "description": "Gardening tools - use for gardening category card or listing."
+      },
+      {
+        "url": "https://images.pexels.com/photos/4507705/pexels-photo-4507705.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "product_misc",
+        "description": "Miscellaneous tools and items on wood."
+      }
+    ],
+    "profiles_testimonials": [
+      {
+        "url": "https://images.unsplash.com/photo-1548213238-0da7521bd6e0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHw0fHxzbWlsaW5nJTIwcGVyc29uJTIwcG9ydHJhaXQlMjBvdXRkb29yc3xlbnwwfHx8fDE3ODA5NTE5OTF8MA&ixlib=rb-4.1.0&q=85",
+        "category": "avatar_1",
+        "description": "Smiling person - use for user profile, tool owner, or reviewer."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1598966739654-5e9a252d8c32?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHwxfHxzbWlsaW5nJTIwcGVyc29uJTIwcG9ydHJhaXQlMjBvdXRkb29yc3xlbnwwfHx8fDE3ODA5NTE5OTF8MA&ixlib=rb-4.1.0&q=85",
+        "category": "avatar_2",
+        "description": "Man smiling - use for user profile, tool owner, or reviewer."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Use Shadcn UI components for complex interactive pieces (forms, date pickers, dialogs) but customize them heavily with our styles.",
+    "Apply pure Tailwind CSS with semantic HTML elements for marketing sections like hero and features.",
+    "Ensure generous padding inside cards (p-6 to p-8) and round corners (rounded-2xl) to make the UI feel approachable and organic.",
+    "Do NOT use pure white #ffffff for the main body background. Use #FDFCF7 (warm bone white) to keep it organic and earthy.",
+    "Setup Tailwind fonts configuration: 'font-heading' for Manrope and 'font-sans' for DM Sans.",
+    "In the marketplace map split view, ensure the map side is sticky and takes up at least 50% to 60% of the screen width on desktop.",
+    "Implement the Glassmorphism crystal look on the sticky header for a premium touch: backdrop-blur-xl and bg-[#FDFCF7]/80.",
+    "Apply data-testid to ALL interactive elements to meet the testing requirements.",
+    "For the hero image overlay, use a gradient overlay (bg-gradient-to-r from-[#1A201D]/70 via-[#1A201D]/40 to-transparent) instead of a flat blanket overlay so the image breathes."
+  ]
+}
