@@ -149,6 +149,15 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ Seeded 3 users + 12 tools in Toronto/Mississauga for demo
 - ✅ Design system: warm bone-white + forest green + terracotta, Manrope/DM Sans
 
+## 12b. P1 Build (2026-06-08)
+- ✅ **Anti-double-booking guard** — overlap detection at booking creation AND approval (HTTP 409)
+- ✅ **Stripe Checkout** for renter payments via `emergentintegrations` helper (10% platform fee tracked per booking)
+- ✅ **Stripe Identity** for ID verification with selfie matching (`is_verified=true` on success)
+- ✅ **In-app messaging** with thread list + polling (5–8s); inline panel on booking detail
+- ✅ **Admin dashboard** at `/admin` — stats, users (verify/admin/suspend toggles), bookings (dispute toggle), tools, email log
+- ⚠️ **Email notifications** — MOCKED: writes to `db.email_log`. Provide Resend API key to enable real sending.
+- ✅ Tests: 43/43 backend pytest, frontend flows verified
+
 ## 13. Prioritized Backlog
 - **P0 (done)**: Auth, listings + images, map search, AI assistant, bookings, reviews, favorites
 - **P1**: Stripe Connect, in-app messaging, email notifications, admin dashboard, identity verification
