@@ -166,7 +166,24 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ AI Assistant example chips adapt to current language; category labels translated
 - ✅ Tests: 100% frontend i18n pass on EN/FR/ES across 7 key pages
 
+## 12d. Buy/Sell + Insurance + Featured (2026-06-09)
+- ✅ Tools have `listing_type` (rent/sell/both) + `sale_price`; "FOR SALE" pill in card
+- ✅ `/api/purchases` POST (?tool_id) + GET (role=buyer|owner); tool marked `is_sold` after purchase
+- ✅ Insurance tiers (none/basic/premium) at `/api/insurance/tiers`; daily fee added to booking total
+- ✅ `is_featured` on tools; admin toggle via `PUT /api/admin/tools/{id}/feature`; Browse sorts featured-first with FEATURED badge
+- ✅ Persisted Browse filters (radius_km, max_price, listing_type) in `localStorage`
+
+## 12e. Favorites + Reviews enhancements (2026-06-09)
+- ✅ Favorites: tools (existing) + **availability alerts** (`alerts_on` flag) + **owner follows** (`owner_follows` collection)
+- ✅ Endpoints: `POST/DELETE /api/follows/{owner_id}`, `GET /api/follows`, `GET /api/follows/check/{id}`; `POST /api/favorites/{tool_id}?alerts=bool`
+- ✅ Follower notify hook on new tool creation; availability-alert hook on booking complete/cancelled (MOCKED email_log)
+- ✅ Profile page Follow / Following button; Dashboard Favorites tab has "Saved tools" (bell-alert + X-remove) + "Followed owners" (unfollow)
+- ✅ Reviews: optional `condition_tag` (like_new/good/fair/poor) on tool reviews; `hidden` flag for moderation
+- ✅ Admin: `/api/admin/reviews` list + `PUT /api/admin/reviews/{id}/hide` toggle; Reviews tab on Admin page with hide/unhide
+- ✅ Tests: 14/14 backend pytest (iteration_7); all UI flows verified across EN/FR/ES
+
 ## 13. Prioritized Backlog
 - **P0 (done)**: Auth, listings + images, map search, AI assistant, bookings, reviews, favorites
-- **P1**: Stripe Connect, in-app messaging, email notifications, admin dashboard, identity verification
-- **P2**: i18n (EN/FR/ES), Apple OAuth, mobile apps, buying & selling, insurance/protection plans, featured listings
+- **P1 (done)**: Stripe Connect, in-app messaging, email notifications (mocked), admin dashboard, identity verification (mocked), buy/sell, insurance plans, featured listings, owner follows + availability alerts, review moderation + condition tags
+- **P2**: Real Resend email integration, real Stripe Identity verification (currently mocked toggle), PayPal payouts, native mobile apps, server.py refactor into /routes modules
+
