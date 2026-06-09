@@ -2,24 +2,51 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth.jsx";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ToolCard from "@/components/ToolCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, ShieldCheck, MapPin, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Star, ShieldCheck, MapPin, Calendar, UserPlus, UserCheck } from "lucide-react";
 
 export default function Profile() {
   const { id } = useParams();
   const { t, i18n } = useTranslation();
+  const { user: me } = useAuth();
   const [user, setUser] = useState(null);
   const [tools, setTools] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [following, setFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     api.get(`/users/${id}`).then(r => setUser(r.data));
     api.get(`/tools`, { params: { owner_id: id } }).then(r => setTools(r.data));
     api.get(`/reviews`, { params: { user_id: id } }).then(r => setReviews(r.data));
-  }, [id]);
+    if (me && me.id !== id) {
+      api.get(`/follows/check/${id}`).then(r => setFollowing(r.data.following)).catch(() => {});
+    }
+  }, [id, me?.id]);
+
+  const toggleFollow = async () => {
+    if (!me) { toast.error(t("profile.login_to_follow")); return; }
+    setFollowLoading(true);
+    try {
+      if (following) {
+        await api.delete(`/follows/${id}`);
+        setFollowing(false);
+        toast.success(t("profile.unfollowed"));
+      } else {
+        await api.post(`/follows/${id}`);
+        setFollowing(true);
+        toast.success(t("profile.followed"));
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed");
+    } finally { setFollowLoading(false); }
+  };
 
   if (!user) return (<div className="min-h-screen bg-brand-bg"><Header /><div className="p-16 text-center text-brand-muted">Loading…</div></div>);
 
@@ -53,6 +80,23 @@ export default function Profile() {
             </div>
             {user.bio && <p className="text-brand-muted mt-4 leading-relaxed">{user.bio}</p>}
           </div>
+          {me && me.id !== id && (
+            <Button
+              onClick={toggleFollow}
+              disabled={followLoading}
+              data-testid="follow-owner-btn"
+              variant={following ? "outline" : "default"}
+              className={following
+                ? "rounded-xl border-brand-primary text-brand-primary hover:bg-brand-primary/5"
+                : "rounded-xl bg-brand-primary hover:bg-brand-primary-hover text-white"}
+            >
+              {following ? (
+                <><UserCheck className="w-4 h-4 mr-1.5" /> {t("profile.following")}</>
+              ) : (
+                <><UserPlus className="w-4 h-4 mr-1.5" /> {t("profile.follow")}</>
+              )}
+            </Button>
+          )}
         </div>
 
         <h2 className="font-heading text-2xl font-bold mb-4">{t("profile.tools", { name: user.name.split(" ")[0] })} ({tools.length})</h2>
@@ -81,6 +125,11 @@ export default function Profile() {
                     </div>
                   </div>
                   <p className="text-sm text-brand-muted">{r.comment}</p>
+                  {r.condition_tag && (
+                    <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider bg-brand-subtle text-brand-text px-2 py-0.5 rounded-full">
+                      {t(`booking.condition_${r.condition_tag}`)}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

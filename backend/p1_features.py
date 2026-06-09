@@ -447,6 +447,45 @@ def build_p1_router(db, current_user_dep, get_user_by_id) -> APIRouter:
         await db.tools.update_one({"id": tool_id}, {"$set": {"is_featured": new_val}})
         return {"is_featured": new_val}
 
+    @r.get("/admin/reviews")
+    async def admin_reviews(_: dict = Depends(admin_required)):
+        reviews = await db.reviews.find({}, {"_id": 0}).sort("created_at", -1).limit(500).to_list(length=500)
+        for rv in reviews:
+            reviewer = await get_user_by_id(rv["reviewer_id"])
+            rv["reviewer_name"] = reviewer["name"] if reviewer else "?"
+            if rv.get("target_user_id"):
+                tu = await get_user_by_id(rv["target_user_id"])
+                rv["target_user_name"] = tu["name"] if tu else "?"
+            tool = await db.tools.find_one({"id": rv["tool_id"]})
+            rv["tool_title"] = tool["title"] if tool else "(deleted)"
+        return reviews
+
+    @r.put("/admin/reviews/{review_id}/hide")
+    async def admin_toggle_hide_review(review_id: str, _: dict = Depends(admin_required)):
+        rv = await db.reviews.find_one({"id": review_id})
+        if not rv:
+            raise HTTPException(404, "Not found")
+        new_val = not rv.get("hidden", False)
+        await db.reviews.update_one({"id": review_id}, {"$set": {"hidden": new_val}})
+        # Recompute aggregate (target tool or user)
+        if rv["target_type"] == "tool":
+            agg = await db.reviews.aggregate([
+                {"$match": {"tool_id": rv["tool_id"], "target_type": "tool", "hidden": {"$ne": True}}},
+                {"$group": {"_id": None, "avg": {"$avg": "$rating"}, "count": {"$sum": 1}}}
+            ]).to_list(length=1)
+            avg = round(agg[0]["avg"], 2) if agg else 0.0
+            count = agg[0]["count"] if agg else 0
+            await db.tools.update_one({"id": rv["tool_id"]}, {"$set": {"rating_avg": avg, "rating_count": count}})
+        elif rv.get("target_user_id"):
+            agg = await db.reviews.aggregate([
+                {"$match": {"target_user_id": rv["target_user_id"], "target_type": {"$in": ["owner", "renter"]}, "hidden": {"$ne": True}}},
+                {"$group": {"_id": None, "avg": {"$avg": "$rating"}, "count": {"$sum": 1}}}
+            ]).to_list(length=1)
+            avg = round(agg[0]["avg"], 2) if agg else 0.0
+            count = agg[0]["count"] if agg else 0
+            await db.users.update_one({"id": rv["target_user_id"]}, {"$set": {"rating_avg": avg, "rating_count": count}})
+        return {"hidden": new_val}
+
     @r.get("/admin/email_log")
     async def admin_email_log(_: dict = Depends(admin_required)):
         logs = await db.email_log.find({}, {"_id": 0}).sort("sent_at", -1).limit(100).to_list(length=100)

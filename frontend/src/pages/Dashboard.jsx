@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Calendar, Heart, Package, Trash2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Plus, Calendar, Heart, Package, Trash2, ShieldCheck, ShieldAlert, Bell, BellOff, Users, X } from "lucide-react";
 import { formatDateRange } from "@/lib/dateFormat";
 
 export default function Dashboard() {
@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [renterBookings, setRenterBookings] = useState([]);
   const [ownerBookings, setOwnerBookings] = useState([]);
   const [favorites, setFavorites] = useState([]);
+  const [follows, setFollows] = useState([]);
 
   useEffect(() => {
     if (!loading && !user) nav("/login");
@@ -32,6 +33,7 @@ export default function Dashboard() {
     api.get("/bookings", { params: { role: "renter" } }).then(r => setRenterBookings(r.data));
     api.get("/bookings", { params: { role: "owner" } }).then(r => setOwnerBookings(r.data));
     api.get("/favorites").then(r => setFavorites(r.data));
+    api.get("/follows").then(r => setFollows(r.data));
   }, [user]);
 
   if (!user) return null;
@@ -60,6 +62,30 @@ export default function Dashboard() {
       const r = await api.get("/bookings", { params: { role: "owner" } });
       setOwnerBookings(r.data);
       toast.success(`Booking ${status}`);
+    } catch { toast.error("Failed"); }
+  };
+
+  const toggleAlert = async (toolId, current) => {
+    try {
+      const next = !current;
+      await api.post(`/favorites/${toolId}`, null, { params: { alerts: next } });
+      setFavorites(favs => favs.map(f => f.id === toolId ? { ...f, alerts_on: next } : f));
+      toast.success(next ? t("dashboard.alerts_enabled") : t("dashboard.alerts_disabled"));
+    } catch { toast.error("Failed"); }
+  };
+
+  const removeFavorite = async (toolId) => {
+    try {
+      await api.delete(`/favorites/${toolId}`);
+      setFavorites(favs => favs.filter(f => f.id !== toolId));
+    } catch { toast.error("Failed"); }
+  };
+
+  const unfollowOwner = async (ownerId) => {
+    try {
+      await api.delete(`/follows/${ownerId}`);
+      setFollows(fs => fs.filter(o => o.id !== ownerId));
+      toast.success(t("profile.unfollowed"));
     } catch { toast.error("Failed"); }
   };
 
@@ -172,13 +198,87 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="favorites">
-            {favorites.length === 0 ? (
-              <EmptyState icon={Heart} title={t("dashboard.empty_favorites")} cta={t("dashboard.discover_tools")} to="/browse" />
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {favorites.map(t => <ToolCard key={t.id} tool={t} />)}
-              </div>
-            )}
+            <div className="space-y-10">
+              {/* Saved Tools */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-heading text-lg font-bold flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-brand-secondary" />
+                    {t("dashboard.saved_tools")} <span className="text-brand-muted font-medium">({favorites.length})</span>
+                  </h3>
+                </div>
+                {favorites.length === 0 ? (
+                  <EmptyState icon={Heart} title={t("dashboard.empty_favorites")} cta={t("dashboard.discover_tools")} to="/browse" />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {favorites.map(tool => (
+                      <div key={tool.id} className="relative group">
+                        <ToolCard tool={tool} />
+                        <div className="absolute top-3 right-3 z-10 flex gap-1.5">
+                          <button
+                            onClick={() => toggleAlert(tool.id, tool.alerts_on)}
+                            title={tool.alerts_on ? t("dashboard.alerts_on") : t("dashboard.alerts_off")}
+                            data-testid={`fav-alert-${tool.id}`}
+                            className={`w-9 h-9 rounded-full backdrop-blur flex items-center justify-center shadow-sm transition-colors ${tool.alerts_on
+                              ? "bg-brand-secondary text-white hover:bg-brand-secondary-hover"
+                              : "bg-white/95 text-brand-muted hover:text-brand-secondary hover:bg-white"}`}
+                          >
+                            {tool.alerts_on ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => removeFavorite(tool.id)}
+                            title={t("dashboard.remove_favorite")}
+                            data-testid={`fav-remove-${tool.id}`}
+                            className="w-9 h-9 rounded-full bg-white/95 text-brand-muted hover:text-red-500 hover:bg-white backdrop-blur flex items-center justify-center shadow-sm transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Followed Owners */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-heading text-lg font-bold flex items-center gap-2">
+                    <Users className="w-5 h-5 text-brand-primary" />
+                    {t("dashboard.followed_owners")} <span className="text-brand-muted font-medium">({follows.length})</span>
+                  </h3>
+                </div>
+                {follows.length === 0 ? (
+                  <div className="bg-white border border-brand-border rounded-2xl p-10 text-center">
+                    <Users className="w-10 h-10 mx-auto text-brand-muted/40 mb-3" />
+                    <p className="text-sm text-brand-muted">{t("dashboard.empty_follows")}</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {follows.map(o => (
+                      <div key={o.id} className="bg-white border border-brand-border rounded-2xl p-5 flex items-center gap-4" data-testid={`follow-row-${o.id}`}>
+                        <Avatar className="h-14 w-14">
+                          {o.picture && <AvatarImage src={o.picture} />}
+                          <AvatarFallback className="bg-brand-primary text-white font-bold">{o.name?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <Link to={`/profile/${o.id}`} className="font-heading font-bold hover:underline block truncate">{o.name}</Link>
+                          <div className="text-xs text-brand-muted">{o.tool_count} {t("dashboard.tools_listed")}</div>
+                        </div>
+                        <Button
+                          variant="outline" size="sm"
+                          onClick={() => unfollowOwner(o.id)}
+                          data-testid={`unfollow-${o.id}`}
+                          className="rounded-xl text-xs"
+                        >
+                          {t("profile.unfollow")}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

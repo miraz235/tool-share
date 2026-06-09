@@ -23,6 +23,7 @@ export default function BookingDetail() {
   const [booking, setBooking] = useState(null);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [conditionTag, setConditionTag] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
@@ -96,9 +97,11 @@ export default function BookingDetail() {
     if (rating === 0) { toast.error("Pick a rating"); return; }
     setSubmitting(true);
     try {
-      await api.post("/reviews", { booking_id: id, rating, comment, target_type });
+      const body = { booking_id: id, rating, comment, target_type };
+      if (target_type === "tool" && conditionTag) body.condition_tag = conditionTag;
+      await api.post("/reviews", body);
       toast.success("Review submitted");
-      setRating(0); setComment("");
+      setRating(0); setComment(""); setConditionTag("");
     } catch (e) { toast.error(e.response?.data?.detail || "Failed"); }
     finally { setSubmitting(false); }
   };
@@ -251,6 +254,33 @@ export default function BookingDetail() {
                 <Textarea value={comment} onChange={e => setComment(e.target.value)}
                   placeholder={t("booking.comment_ph")} className="rounded-xl mt-1 mb-4"
                   data-testid="review-comment" />
+
+                {isRenter && (
+                  <div className="mb-4">
+                    <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("booking.condition_label")}</Label>
+                    <div className="flex flex-wrap gap-2 mt-1.5" data-testid="condition-tag-group">
+                      {[
+                        { key: "like_new", label: t("booking.condition_like_new") },
+                        { key: "good", label: t("booking.condition_good") },
+                        { key: "fair", label: t("booking.condition_fair") },
+                        { key: "poor", label: t("booking.condition_poor") },
+                      ].map(opt => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => setConditionTag(conditionTag === opt.key ? "" : opt.key)}
+                          data-testid={`condition-${opt.key}`}
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${conditionTag === opt.key
+                            ? "bg-brand-primary text-white border-brand-primary"
+                            : "bg-white text-brand-text border-brand-border hover:border-brand-primary"}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-brand-muted mt-1.5">{t("booking.condition_hint")}</p>
+                  </div>
+                )}
 
                 <div className="flex gap-2">
                   {isRenter && (

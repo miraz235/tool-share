@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, Package, Calendar, DollarSign, AlertCircle, ShieldCheck, Search, Mail } from "lucide-react";
+import { Users, Package, Calendar, DollarSign, AlertCircle, ShieldCheck, Search, Mail, Star, EyeOff, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateRange, formatDate, formatDateTime } from "@/lib/dateFormat";
 
@@ -23,6 +23,7 @@ export default function Admin() {
   const [bookings, setBookings] = useState([]);
   const [tools, setTools] = useState([]);
   const [emails, setEmails] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function Admin() {
     api.get("/admin/bookings").then(r => setBookings(r.data));
     api.get("/admin/tools").then(r => setTools(r.data));
     api.get("/admin/email_log").then(r => setEmails(r.data));
+    api.get("/admin/reviews").then(r => setReviews(r.data)).catch(() => {});
   };
 
   useEffect(() => { if (user?.is_admin) refresh(); }, [user]);
@@ -51,6 +53,14 @@ export default function Admin() {
     try {
       const r = await api.put(`/admin/bookings/${bid}/dispute`);
       setBookings(bookings.map(b => b.id === bid ? { ...b, dispute_open: r.data.dispute_open } : b));
+    } catch { toast.error("Failed"); }
+  };
+
+  const toggleHideReview = async (rid) => {
+    try {
+      const r = await api.put(`/admin/reviews/${rid}/hide`);
+      setReviews(reviews.map(rv => rv.id === rid ? { ...rv, hidden: r.data.hidden } : rv));
+      toast.success(t("admin.updated"));
     } catch { toast.error("Failed"); }
   };
 
@@ -100,6 +110,9 @@ export default function Admin() {
             </TabsTrigger>
             <TabsTrigger value="email_log" data-testid="admin-tab-emails" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
               <Mail className="w-4 h-4 mr-1.5" /> {t("admin.tab_emails")}
+            </TabsTrigger>
+            <TabsTrigger value="reviews" data-testid="admin-tab-reviews" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
+              <Star className="w-4 h-4 mr-1.5" /> {t("admin.tab_reviews")}
             </TabsTrigger>
           </TabsList>
 
@@ -250,6 +263,59 @@ export default function Admin() {
               {emails.length === 0 && (
                 <div className="bg-white border border-brand-border rounded-2xl p-12 text-center text-brand-muted">{t("admin.no_emails")}</div>
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="reviews">
+            <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-brand-subtle text-left">
+                  <tr>
+                    <th className="p-3 font-semibold">{t("admin.reviewer")}</th>
+                    <th className="p-3 font-semibold">{t("admin.target")}</th>
+                    <th className="p-3 font-semibold">{t("admin.rating")}</th>
+                    <th className="p-3 font-semibold">{t("booking.comment")}</th>
+                    <th className="p-3 font-semibold">{t("admin.posted")}</th>
+                    <th className="p-3 font-semibold">{t("admin.actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reviews.map(rv => (
+                    <tr key={rv.id} className={`border-t border-brand-border ${rv.hidden ? "opacity-50" : ""}`} data-testid={`admin-review-${rv.id}`}>
+                      <td className="p-3 font-semibold">{rv.reviewer_name}</td>
+                      <td className="p-3 text-brand-muted">
+                        <Badge className="bg-brand-subtle text-brand-text border-0 capitalize mr-1">{rv.target_type}</Badge>
+                        {rv.target_type === "tool" ? rv.tool_title : rv.target_user_name}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex">
+                          {[1,2,3,4,5].map(i => <Star key={i} className={`w-3 h-3 ${i <= rv.rating ? 'fill-brand-secondary text-brand-secondary' : 'text-brand-border'}`} />)}
+                        </div>
+                      </td>
+                      <td className="p-3 max-w-xs">
+                        <div className="text-xs line-clamp-2">{rv.comment || "—"}</div>
+                        {rv.condition_tag && (
+                          <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider bg-brand-subtle text-brand-text px-1.5 py-0.5 rounded-full">
+                            {t(`booking.condition_${rv.condition_tag}`)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-xs text-brand-muted">{formatDate(rv.created_at, i18n.language)}</td>
+                      <td className="p-3">
+                        <Button size="sm" variant={rv.hidden ? "default" : "outline"}
+                          onClick={() => toggleHideReview(rv.id)}
+                          data-testid={`hide-review-${rv.id}`}
+                          className="rounded-lg">
+                          {rv.hidden ? <><Eye className="w-3 h-3 mr-1" /> {t("admin.unhide")}</> : <><EyeOff className="w-3 h-3 mr-1" /> {t("admin.hide")}</>}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {reviews.length === 0 && (
+                    <tr><td colSpan={6} className="p-12 text-center text-brand-muted">{t("admin.no_reviews")}</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </TabsContent>
         </Tabs>

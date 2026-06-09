@@ -211,7 +211,16 @@
     "discover_tools": "Découvrir des outils",
     "verify_title": "Vérifiez votre identité",
     "verify_subtitle": "Les utilisateurs vérifiés reçoivent plus de demandes et accèdent à des outils de plus grande valeur.",
-    "verify_btn": "Vérifier avec Stripe"
+    "verify_btn": "Vérifier avec Stripe",
+    "saved_tools": "Outils enregistrés",
+    "followed_owners": "Loueurs suivis",
+    "empty_follows": "Suivez un loueur depuis son profil pour être averti de ses nouvelles annonces.",
+    "tools_listed": "outils en ligne",
+    "alerts_on": "Alertes de disponibilité activées",
+    "alerts_off": "Recevoir des alertes de disponibilité",
+    "alerts_enabled": "Alertes de disponibilité activées",
+    "alerts_disabled": "Alertes de disponibilité désactivées",
+    "remove_favorite": "Retirer des favoris"
   },
   "ai": {
     "tag": "Assistant IA d'outils",
@@ -260,7 +269,13 @@
     "declined_toast": "Réservation refusée",
     "completed_toast": "Réservation terminée",
     "cancelled_toast": "Réservation annulée",
-    "payment_success": "Paiement réussi !"
+    "payment_success": "Paiement réussi !",
+    "condition_label": "État de l'outil (optionnel)",
+    "condition_hint": "L'outil reçu correspondait-il à l'annonce ?",
+    "condition_like_new": "Comme neuf",
+    "condition_good": "Bon",
+    "condition_fair": "Correct",
+    "condition_poor": "Mauvais"
   },
   "messages_page": {
     "title": "Messages",
@@ -271,7 +286,13 @@
   "profile": {
     "tools": "Outils de {{name}}",
     "no_listings": "Aucune annonce pour l'instant.",
-    "joined_in": "Inscrit en {{date}}"
+    "joined_in": "Inscrit en {{date}}",
+    "follow": "Suivre",
+    "following": "Suivi",
+    "unfollow": "Ne plus suivre",
+    "followed": "Vous suivez ce loueur — vous serez averti des nouvelles annonces",
+    "unfollowed": "Vous ne suivez plus ce loueur",
+    "login_to_follow": "Connectez-vous pour suivre des loueurs"
   },
   "categories": {
     "power-tools": "Outils électriques",
@@ -324,7 +345,15 @@
     "rating": "Note",
     "mocked_warning": "FACTICE : Les notifications par e-mail sont uniquement journalisées ici. Pour envoyer de vrais e-mails, fournissez une clé API Resend dans",
     "no_emails": "Aucun e-mail envoyé.",
-    "updated": "Mis à jour"
+    "updated": "Mis à jour",
+    "tab_reviews": "Avis",
+    "reviewer": "Auteur",
+    "target": "Cible",
+    "posted": "Publié",
+    "actions": "Actions",
+    "hide": "Masquer",
+    "unhide": "Afficher",
+    "no_reviews": "Aucun avis pour le moment"
   },
   "lang": {
     "label": "Langue"

@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 7 (Favorites alerts + Follow Owners + Reviews condition_tag + Admin moderation) PASSED end-to-end. Backend: 14/14 pytest pass. Frontend: all P1 UI flows verified — Profile follow toggle + persist, Dashboard Favorites tab (saved tools + alert toggle + remove + Followed Owners + Unfollow), Admin Reviews tab with hide toggle + opacity-50 fade, BookingDetail condition picker (4 chips) + payload persisted with condition_tag='like_new'. i18n FR switch shows 'Favoris' for dashboard tab.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7.py",
+    "/app/test_reports/pytest/iter7_results.xml"
+  ],
+  "verification_evidence": {
+    "follows_idempotent": "PASS — POST /api/follows/{owner_id} returns {following:true} on first and repeat call; self-follow→400; unknown owner→404",
+    "follows_list_and_check": "PASS — GET /api/follows returns owners with tool_count; GET /api/follows/check/{id} returns {following:bool}; DELETE removes follow",
+    "favorites_alerts_toggle_api": "PASS — POST /favorites/{tool_id}?alerts=true sets alerts_on=true; flip ?alerts=false flips it; GET /favorites includes alerts_on per tool",
+    "email_log_follow_notify": "PASS — Marcus creates new tool while Sara follows him → recent email to sara@toolshare.demo appears in /api/admin/email_log",
+    "email_log_availability_alert": "PASS — Sara favorites tool with alerts=true, Marcus creates+approves+cancels Sara's booking → 'Now available' email to Sara logged",
+    "review_condition_tag_validation": "PASS — invalid 'garbage_value' returns 422; all four valid values pass Pydantic (subsequent 404 = booking-not-found, not 422)",
+    "admin_reviews_list_403": "PASS — non-admin gets 403; admin gets list with reviewer_name, target_user_name(when applicable), tool_title",
+    "admin_hide_toggle_recompute": "PASS — PUT /api/admin/reviews/{id}/hide toggles hidden flag; public GET /api/reviews?tool_id=... excludes hidden; tool.rating_count recomputed to 0 after hiding the only review",
+    "ui_profile_follow_btn_persist": "PASS — Sara on Marcus's /profile/{id}: follow-owner-btn toggles Following↔Follow on click, state persists across reload (verified Following→click→Follow→reload→Follow)",
+    "ui_profile_no_self_follow": "PASS — Sara on her own /profile/{sara_id}: follow-owner-btn count=0",
+    "ui_dashboard_favorites": "PASS — Favorites tab shows Saved tools section with fav-alert-{id} (toggle alerts_on confirmed via API to true) and fav-remove-{id} (removes from list after click)",
+    "ui_dashboard_followed_owners": "PASS — Followed owners section shows follow-row-{owner_id} with unfollow-{owner_id}; click removes row",
+    "ui_admin_reviews_tab": "PASS — admin-tab-reviews renders all reviews with reviewer, target, stars, comment, condition tag chip; hide-review-{id} click adds opacity-50 to admin-review-{id} row and persists hidden=true",
+    "ui_booking_condition_picker": "PASS — Seeded bk_TEST_ITER7_ENDED (paid+approved+ended) for Sara → condition-tag-group renders 4 chips (like_new/good/fair/poor); click adds bg-brand-primary class; Review tool submission saves review with condition_tag='like_new' (verified via GET /api/reviews response)",
+    "i18n_fr_regression": "PASS — Switch to Français shows 'Favoris' for dashboard tab (dashboard.favorites translation works)"
+  },
+  "critical_code_review_comments": [
+    "server.py:947-964 availability-alert: excludes acting user (user_id:{$ne:user['id']}) — correct, prevents the cancelling user from emailing themselves. However Sara as renter cancelling her own booking would not get an alert email even if she favorited — by design, fine.",
+    "server.py:1011-1027 follow_owner is correctly idempotent (returns same response on duplicate); db.owner_follows has unique index on (user_id,owner_id) at line 1264 — race-safe.",
+    "p1_features.py:463-487 hide toggle recomputes aggregates correctly using $ne:true filter, matching the public list_reviews filter at server.py:1116.",
+    "BookingDetail.jsx condition picker only renders when isRenter — correctly gated; condition_tag is only sent when target_type==='tool' which matches backend ReviewIn schema.",
+    "Dashboard.jsx Favorites tab correctly polls /api/favorites and /api/follows; optimistic UI on toggleAlert/removeFavorite/unfollowOwner works smoothly.",
+    "Minor: BookingDetail review form does not currently check 'no edit window' on the frontend — the form may re-appear after submission until reload. Confirmed backend allows POST /api/reviews multiple times for same booking (no dedupe at server.py:1060). Could allow duplicate reviews — non-blocking for this iteration but worth flagging."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7.py (new — 14 tests covering follows, favorites alerts, email mocks, review condition_tag, admin reviews moderation)"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% (all P1 testids verified)"},
+  "test_credentials": "Used marcus/sara/diego @toolshare.demo demo1234 and admin@toolshare.demo Admin1234! from /app/memory/test_credentials.md",
+  "seed_data_creation": "Inserted bk_TEST_ITER7_ENDED (approved+paid+past) for Sara to exercise condition picker, and TEST_iter7_* tools/reviews during pytest. All cleaned up post-run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Use REACT_APP_BACKEND_URL from /app/frontend/.env. Frontend localStorage token key is 'toolshare_token'. BookingDetail route is /bookings/{id} (plural). Tool POST requires daily_price (not daily_rate), security_deposit, condition, images[], and nested location{city,lat,lng}. For condition-picker tests, seed a booking with status='approved' + paid=True + paid_at set + end_date<today.",
+  "rca of the issue": "No bugs found in iteration 7 features. The only design observation is BookingDetail has no client/server dedupe on review submission — users could potentially submit multiple reviews for the same booking. Not blocking for this iteration but main agent should consider a unique index on (booking_id, reviewer_id, target_type) in db.reviews if duplicates become a concern."
+}

@@ -213,6 +213,7 @@ class ReviewIn(BaseModel):
     rating: int = Field(ge=1, le=5)
     comment: str = ""
     target_type: Literal["owner", "renter", "tool"]
+    condition_tag: Optional[Literal["like_new", "good", "fair", "poor"]] = None
 
 
 class Review(BaseModel):
@@ -224,6 +225,8 @@ class Review(BaseModel):
     target_type: str
     rating: int
     comment: str
+    condition_tag: Optional[str] = None
+    hidden: bool = False
     created_at: str
 
 
@@ -537,6 +540,20 @@ async def create_tool(payload: ToolIn, user: dict = Depends(current_user)):
         "created_at": now_iso(),
     })
     await db.tools.insert_one(doc)
+    # Notify followers of this owner about the new listing (MOCKED email)
+    try:
+        follows = await db.owner_follows.find({"owner_id": user["id"]}, {"_id": 0}).to_list(length=500)
+        for f in follows:
+            follower = await get_user_by_id(f["user_id"])
+            if follower:
+                await send_email_mocked(
+                    follower["email"],
+                    f"{user.get('name','An owner')} just listed: {doc['title']}",
+                    f"A tool you might like is now available on ToolShare. Open the app to view it.",
+                    db=db,
+                )
+    except Exception as e:
+        logger.error(f"Follower notify failed: {e}")
     doc.pop("_id", None)
     return doc
 
@@ -926,6 +943,25 @@ async def update_booking_status(booking_id: str, payload: BookingStatusIn, user:
         if other:
             await send_email_mocked(other["email"], "Booking cancelled",
                 f"Booking {booking_id} was cancelled by the {'renter' if user['id']==b['renter_id'] else 'owner'}.", db=db)
+    # Availability alerts: when a booking ends (completed/cancelled), tool may be free again
+    if payload.status in ("completed", "cancelled"):
+        try:
+            alert_subs = await db.favorites.find(
+                {"tool_id": b["tool_id"], "alerts_on": True, "user_id": {"$ne": user["id"]}},
+                {"_id": 0}
+            ).to_list(length=500)
+            tool = await db.tools.find_one({"id": b["tool_id"]}, {"_id": 0})
+            for sub in alert_subs:
+                subscriber = await get_user_by_id(sub["user_id"])
+                if subscriber and tool:
+                    await send_email_mocked(
+                        subscriber["email"],
+                        f"Now available: {tool.get('title','a saved tool')}",
+                        f"A tool you saved is available again. Open ToolShare to book it.",
+                        db=db,
+                    )
+        except Exception as e:
+            logger.error(f"Availability alert failed: {e}")
     return {"ok": True, "status": payload.status}
 
 
@@ -933,17 +969,23 @@ async def update_booking_status(booking_id: str, payload: BookingStatusIn, user:
 # Routes - Favorites
 # -----------------------------------------------------------------------------
 @api.post("/favorites/{tool_id}")
-async def add_favorite(tool_id: str, user: dict = Depends(current_user)):
+async def add_favorite(tool_id: str, alerts: bool = False, user: dict = Depends(current_user)):
     existing = await db.favorites.find_one({"user_id": user["id"], "tool_id": tool_id})
     if existing:
-        return {"ok": True}
+        # Allow toggling alerts on existing favorite
+        await db.favorites.update_one(
+            {"user_id": user["id"], "tool_id": tool_id},
+            {"$set": {"alerts_on": bool(alerts)}}
+        )
+        return {"ok": True, "alerts_on": bool(alerts)}
     await db.favorites.insert_one({
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
         "tool_id": tool_id,
+        "alerts_on": bool(alerts),
         "created_at": now_iso(),
     })
-    return {"ok": True}
+    return {"ok": True, "alerts_on": bool(alerts)}
 
 
 @api.delete("/favorites/{tool_id}")
@@ -957,7 +999,59 @@ async def list_favorites(user: dict = Depends(current_user)):
     favs = await db.favorites.find({"user_id": user["id"]}, {"_id": 0}).to_list(length=200)
     tool_ids = [f["tool_id"] for f in favs]
     tools = await db.tools.find({"id": {"$in": tool_ids}}, {"_id": 0}).to_list(length=200)
+    alerts_map = {f["tool_id"]: bool(f.get("alerts_on", False)) for f in favs}
+    for t in tools:
+        t["alerts_on"] = alerts_map.get(t["id"], False)
     return tools
+
+
+# -----------------------------------------------------------------------------
+# Routes - Follow Owners
+# -----------------------------------------------------------------------------
+@api.post("/follows/{owner_id}")
+async def follow_owner(owner_id: str, user: dict = Depends(current_user)):
+    if owner_id == user["id"]:
+        raise HTTPException(400, "Cannot follow yourself")
+    owner = await get_user_by_id(owner_id)
+    if not owner:
+        raise HTTPException(404, "Owner not found")
+    existing = await db.owner_follows.find_one({"user_id": user["id"], "owner_id": owner_id})
+    if existing:
+        return {"ok": True, "following": True}
+    await db.owner_follows.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "owner_id": owner_id,
+        "created_at": now_iso(),
+    })
+    return {"ok": True, "following": True}
+
+
+@api.delete("/follows/{owner_id}")
+async def unfollow_owner(owner_id: str, user: dict = Depends(current_user)):
+    await db.owner_follows.delete_one({"user_id": user["id"], "owner_id": owner_id})
+    return {"ok": True, "following": False}
+
+
+@api.get("/follows")
+async def list_follows(user: dict = Depends(current_user)):
+    follows = await db.owner_follows.find({"user_id": user["id"]}, {"_id": 0}).to_list(length=200)
+    owner_ids = [f["owner_id"] for f in follows]
+    owners = []
+    for oid in owner_ids:
+        u = await get_user_by_id(oid)
+        if u:
+            pub = serialize_user(u)
+            # tool count
+            pub["tool_count"] = await db.tools.count_documents({"owner_id": oid, "is_available": True})
+            owners.append(pub)
+    return owners
+
+
+@api.get("/follows/check/{owner_id}")
+async def check_follow(owner_id: str, user: dict = Depends(current_user)):
+    existing = await db.owner_follows.find_one({"user_id": user["id"], "owner_id": owner_id})
+    return {"following": bool(existing)}
 
 
 # -----------------------------------------------------------------------------
@@ -986,14 +1080,16 @@ async def create_review(payload: ReviewIn, user: dict = Depends(current_user)):
         "target_type": payload.target_type,
         "rating": payload.rating,
         "comment": payload.comment,
+        "condition_tag": payload.condition_tag,
+        "hidden": False,
         "created_at": now_iso(),
     }
     await db.reviews.insert_one(doc)
 
-    # Update aggregate ratings
+    # Update aggregate ratings (only count non-hidden)
     if payload.target_type == "tool":
         agg = await db.reviews.aggregate([
-            {"$match": {"tool_id": booking["tool_id"], "target_type": "tool"}},
+            {"$match": {"tool_id": booking["tool_id"], "target_type": "tool", "hidden": {"$ne": True}}},
             {"$group": {"_id": None, "avg": {"$avg": "$rating"}, "count": {"$sum": 1}}}
         ]).to_list(length=1)
         if agg:
@@ -1003,7 +1099,7 @@ async def create_review(payload: ReviewIn, user: dict = Depends(current_user)):
             )
     elif target_user_id:
         agg = await db.reviews.aggregate([
-            {"$match": {"target_user_id": target_user_id, "target_type": {"$in": ["owner", "renter"]}}},
+            {"$match": {"target_user_id": target_user_id, "target_type": {"$in": ["owner", "renter"]}, "hidden": {"$ne": True}}},
             {"$group": {"_id": None, "avg": {"$avg": "$rating"}, "count": {"$sum": 1}}}
         ]).to_list(length=1)
         if agg:
@@ -1017,7 +1113,7 @@ async def create_review(payload: ReviewIn, user: dict = Depends(current_user)):
 
 @api.get("/reviews")
 async def list_reviews(tool_id: Optional[str] = None, user_id: Optional[str] = None):
-    filt = {}
+    filt = {"hidden": {"$ne": True}}
     if tool_id:
         filt["tool_id"] = tool_id
     if user_id:
@@ -1165,6 +1261,7 @@ async def on_startup():
     await db.bookings.create_index("tool_id")
     await db.sessions.create_index("session_token", unique=True)
     await db.favorites.create_index([("user_id", 1), ("tool_id", 1)], unique=True)
+    await db.owner_follows.create_index([("user_id", 1), ("owner_id", 1)], unique=True)
     await db.messages.create_index("booking_id")
     await db.messages.create_index("recipient_id")
     await db.payment_transactions.create_index("session_id", unique=True)

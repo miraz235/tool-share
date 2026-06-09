@@ -211,7 +211,16 @@
     "discover_tools": "Descubrir herramientas",
     "verify_title": "Verifica tu identidad",
     "verify_subtitle": "Los usuarios verificados reciben más solicitudes y acceden a herramientas de mayor valor.",
-    "verify_btn": "Verificar con Stripe"
+    "verify_btn": "Verificar con Stripe",
+    "saved_tools": "Herramientas guardadas",
+    "followed_owners": "Propietarios seguidos",
+    "empty_follows": "Sigue a un propietario desde su perfil para recibir alertas cuando publique algo nuevo.",
+    "tools_listed": "herramientas publicadas",
+    "alerts_on": "Alertas de disponibilidad activadas",
+    "alerts_off": "Activar alertas de disponibilidad",
+    "alerts_enabled": "Alertas de disponibilidad activadas",
+    "alerts_disabled": "Alertas de disponibilidad desactivadas",
+    "remove_favorite": "Quitar de favoritos"
   },
   "ai": {
     "tag": "Asistente IA de herramientas",
@@ -260,7 +269,13 @@
     "declined_toast": "Reserva rechazada",
     "completed_toast": "Reserva completada",
     "cancelled_toast": "Reserva cancelada",
-    "payment_success": "¡Pago exitoso!"
+    "payment_success": "¡Pago exitoso!",
+    "condition_label": "Estado de la herramienta (opcional)",
+    "condition_hint": "¿La herramienta coincidía con el anuncio?",
+    "condition_like_new": "Como nuevo",
+    "condition_good": "Bueno",
+    "condition_fair": "Aceptable",
+    "condition_poor": "Malo"
   },
   "messages_page": {
     "title": "Mensajes",
@@ -271,7 +286,13 @@
   "profile": {
     "tools": "Herramientas de {{name}}",
     "no_listings": "Aún no hay anuncios.",
-    "joined_in": "Se unió en {{date}}"
+    "joined_in": "Se unió en {{date}}",
+    "follow": "Seguir",
+    "following": "Siguiendo",
+    "unfollow": "Dejar de seguir",
+    "followed": "Siguiendo — recibirás avisos de nuevas publicaciones",
+    "unfollowed": "Has dejado de seguir",
+    "login_to_follow": "Inicia sesión para seguir a otros"
   },
   "categories": {
     "power-tools": "Herramientas eléctricas",
@@ -324,7 +345,15 @@
     "rating": "Puntuación",
     "mocked_warning": "SIMULADO: Las notificaciones por correo solo se registran aquí. Para enviar correos reales, proporciona una clave API de Resend en",
     "no_emails": "Aún no se han enviado correos.",
-    "updated": "Actualizado"
+    "updated": "Actualizado",
+    "tab_reviews": "Reseñas",
+    "reviewer": "Autor",
+    "target": "Objetivo",
+    "posted": "Publicado",
+    "actions": "Acciones",
+    "hide": "Ocultar",
+    "unhide": "Mostrar",
+    "no_reviews": "Aún no hay reseñas"
   },
   "lang": {
     "label": "Idioma"

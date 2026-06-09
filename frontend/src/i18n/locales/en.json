@@ -211,7 +211,16 @@
     "discover_tools": "Discover tools",
     "verify_title": "Verify your identity",
     "verify_subtitle": "Verified users get more booking requests and access to higher-value tools.",
-    "verify_btn": "Verify with Stripe"
+    "verify_btn": "Verify with Stripe",
+    "saved_tools": "Saved tools",
+    "followed_owners": "Followed owners",
+    "empty_follows": "Follow an owner from their profile to get alerts when they list something new.",
+    "tools_listed": "tools listed",
+    "alerts_on": "Availability alerts on",
+    "alerts_off": "Get availability alerts",
+    "alerts_enabled": "Availability alerts enabled",
+    "alerts_disabled": "Availability alerts disabled",
+    "remove_favorite": "Remove from favorites"
   },
   "ai": {
     "tag": "AI Tool Assistant",
@@ -260,7 +269,13 @@
     "declined_toast": "Booking declined",
     "completed_toast": "Booking completed",
     "cancelled_toast": "Booking cancelled",
-    "payment_success": "Payment successful!"
+    "payment_success": "Payment successful!",
+    "condition_label": "Tool condition (optional)",
+    "condition_hint": "How was the actual tool versus the listing?",
+    "condition_like_new": "Like new",
+    "condition_good": "Good",
+    "condition_fair": "Fair",
+    "condition_poor": "Poor"
   },
   "messages_page": {
     "title": "Messages",
@@ -271,7 +286,13 @@
   "profile": {
     "tools": "{{name}}'s tools",
     "no_listings": "No listings yet.",
-    "joined_in": "Joined {{date}}"
+    "joined_in": "Joined {{date}}",
+    "follow": "Follow",
+    "following": "Following",
+    "unfollow": "Unfollow",
+    "followed": "Following — you'll be notified about new listings",
+    "unfollowed": "Unfollowed",
+    "login_to_follow": "Log in to follow owners"
   },
   "categories": {
     "power-tools": "Power Tools",
@@ -324,7 +345,15 @@
     "rating": "Rating",
     "mocked_warning": "MOCKED: Email notifications are logged here only. To send real emails, provide a Resend API key in",
     "no_emails": "No emails sent yet.",
-    "updated": "Updated"
+    "updated": "Updated",
+    "tab_reviews": "Reviews",
+    "reviewer": "Reviewer",
+    "target": "Target",
+    "posted": "Posted",
+    "actions": "Actions",
+    "hide": "Hide",
+    "unhide": "Unhide",
+    "no_reviews": "No reviews yet"
   },
   "lang": {
     "label": "Language"
