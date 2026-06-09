@@ -46,7 +46,8 @@
     "for_sale": "For sale",
     "buy": "to buy",
     "joined": "Joined",
-    "reviews_count": "reviews"
+    "reviews_count": "reviews",
+    "native_label": "Local"
   },
   "landing": {
     "tagline": "North America's tool-sharing community",

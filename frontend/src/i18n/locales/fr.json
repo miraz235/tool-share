@@ -46,7 +46,8 @@
     "for_sale": "À vendre",
     "buy": "à acheter",
     "joined": "Inscrit",
-    "reviews_count": "avis"
+    "reviews_count": "avis",
+    "native_label": "Locale"
   },
   "landing": {
     "tagline": "La communauté de partage d'outils de l'Amérique du Nord",

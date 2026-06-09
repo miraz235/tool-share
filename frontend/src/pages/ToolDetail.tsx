@@ -21,7 +21,7 @@ export default function ToolDetail() {
   const { t } = useTranslation();
   const nav = useNavigate();
   const { user } = useAuth();
-  const { format } = useCurrency();
+  const { format, currency: viewerCurrency } = useCurrency();
   const [tool, setTool] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [activeImg, setActiveImg] = useState<number>(0);
@@ -268,6 +268,11 @@ export default function ToolDetail() {
                 <span className="font-heading text-3xl font-extrabold text-brand-secondary">{format(tool.daily_price, { from: tool.price_currency })}</span>
                 <span className="text-brand-muted text-sm">{t("common.per_day")}</span>
               </div>
+              {(tool.price_currency || "USD").toUpperCase() !== viewerCurrency && (
+                <div className="text-[11px] uppercase tracking-wider font-bold text-brand-muted/80 mb-2" data-testid="tool-detail-native">
+                  ≈ {tool.daily_price} {(tool.price_currency || "USD").toUpperCase()} {t("common.native_label")}
+                </div>
+              )}
               {tool.security_deposit > 0 && (
                 <div className="text-xs text-brand-muted mb-4">{t("tool.deposit_refundable", { value: format(tool.security_deposit, { from: tool.price_currency }) })}</div>
               )}
