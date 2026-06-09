@@ -85,6 +85,10 @@ async def main():
             "delivery_radius_km": 10 if i % 3 == 0 else 0,
             "unavailable_dates": [],
             "is_available": True,
+            "is_sold": False,
+            "is_featured": i < 3,  # First 3 tools are featured for demo
+            "listing_type": "both" if i % 4 == 0 else "rent",  # ~25% also for sale
+            "sale_price": round(t["daily_price"] * 25, 2) if i % 4 == 0 else 0,  # roughly 25× rental
             "view_count": 0,
             "rating_avg": 4.7 if i % 2 == 0 else 4.5,
             "rating_count": 3 + i,

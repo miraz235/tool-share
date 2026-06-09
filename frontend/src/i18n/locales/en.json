@@ -42,6 +42,9 @@
     "deposit": "Deposit",
     "total": "Total",
     "verified": "Verified",
+    "featured": "Featured",
+    "for_sale": "For sale",
+    "buy": "to buy",
     "joined": "Joined",
     "reviews_count": "reviews"
   },
@@ -98,7 +101,10 @@
     "use_my_location": "Use my location",
     "view_split": "Split",
     "view_grid": "Grid",
-    "view_map": "Map"
+    "view_map": "Map",
+    "type_all": "All",
+    "type_rent": "Rent",
+    "type_sell": "Buy"
   },
   "tool": {
     "about": "About this tool",
@@ -112,6 +118,9 @@
     "approximate_location": "Approximate location",
     "exact_location_note": "Exact pickup address is shared after payment.",
     "exact_revealed": "Exact location & address",
+    "protection": "Protection plan",
+    "buy_outright": "Or buy outright",
+    "buy_now": "Buy now",
     "reviews": "Reviews",
     "no_reviews": "No reviews yet. Be the first to review this tool.",
     "rental_dates": "Rental dates",

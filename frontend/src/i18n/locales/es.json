@@ -42,6 +42,9 @@
     "deposit": "Depósito",
     "total": "Total",
     "verified": "Verificado",
+    "featured": "Destacado",
+    "for_sale": "En venta",
+    "buy": "para comprar",
     "joined": "Se unió",
     "reviews_count": "reseñas"
   },
@@ -98,7 +101,10 @@
     "use_my_location": "Usar mi ubicación",
     "view_split": "Mixta",
     "view_grid": "Lista",
-    "view_map": "Mapa"
+    "view_map": "Mapa",
+    "type_all": "Todo",
+    "type_rent": "Alquilar",
+    "type_sell": "Comprar"
   },
   "tool": {
     "about": "Acerca de esta herramienta",
@@ -112,6 +118,9 @@
     "approximate_location": "Ubicación aproximada",
     "exact_location_note": "La dirección exacta de recogida se comparte tras el pago.",
     "exact_revealed": "Ubicación y dirección exactas",
+    "protection": "Plan de protección",
+    "buy_outright": "O cómpralo directamente",
+    "buy_now": "Comprar ahora",
     "reviews": "Reseñas",
     "no_reviews": "Aún no hay reseñas. Sé el primero en reseñar esta herramienta.",
     "rental_dates": "Fechas de alquiler",

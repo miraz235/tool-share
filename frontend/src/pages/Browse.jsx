@@ -13,6 +13,21 @@ import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal, Compass, L
 
 const DEFAULT_RADIUS = 50;
 const MAX_PRICE = 500;
+const STORAGE_KEY = "toolshare_browse_filters";
+
+function loadSavedFilters() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveFilters(patch) {
+  try {
+    const prev = loadSavedFilters();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prev, ...patch }));
+  } catch {}
+}
 
 export default function Browse() {
   const { t } = useTranslation();
@@ -26,15 +41,39 @@ export default function Browse() {
   const [userLocation, setUserLocation] = useState(null);
   const [geoLoading, setGeoLoading] = useState(false);
 
+  // On mount: if URL has no filter params, hydrate from localStorage
+  useEffect(() => {
+    const saved = loadSavedFilters();
+    const p = new URLSearchParams(params);
+    let changed = false;
+    if (!p.has("max_price") && saved.max_price && saved.max_price < MAX_PRICE) {
+      p.set("max_price", String(saved.max_price)); changed = true;
+    }
+    if (!p.has("radius_km") && saved.radius_km && saved.radius_km !== DEFAULT_RADIUS) {
+      p.set("radius_km", String(saved.radius_km)); changed = true;
+    }
+    if (!p.has("listing_type") && saved.listing_type) {
+      p.set("listing_type", saved.listing_type); changed = true;
+    }
+    if (changed) setParams(p, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const q = params.get("q") || "";
   const category = params.get("category") || "all";
   const city = params.get("city") || "";
+  const listingType = params.get("listing_type") || "all";
 
   // Local UI state for live slider feedback
   const [maxPriceUI, setMaxPriceUI] = useState(parseInt(params.get("max_price") || String(MAX_PRICE), 10));
   const [radiusUI, setRadiusUI] = useState(parseInt(params.get("radius_km") || String(DEFAULT_RADIUS), 10));
   const maxPrice = parseInt(params.get("max_price") || String(MAX_PRICE), 10);
   const radiusKm = parseInt(params.get("radius_km") || String(DEFAULT_RADIUS), 10);
+
+  // Persist on any change
+  useEffect(() => { saveFilters({ max_price: maxPrice }); }, [maxPrice]);
+  useEffect(() => { saveFilters({ radius_km: radiusKm }); }, [radiusKm]);
+  useEffect(() => { saveFilters({ listing_type: listingType === "all" ? null : listingType }); }, [listingType]);
 
   // Geolocate on mount
   useEffect(() => {
@@ -60,6 +99,7 @@ export default function Browse() {
     if (q) queryParams.q = q;
     if (category && category !== "all") queryParams.category = category;
     if (city) queryParams.city = city;
+    if (listingType && listingType !== "all") queryParams.listing_type = listingType;
     if (maxPrice && maxPrice < MAX_PRICE) queryParams.max_price = maxPrice;
     if (userLocation) {
       queryParams.lat = userLocation.lat;
@@ -69,7 +109,7 @@ export default function Browse() {
     api.get("/tools", { params: queryParams })
       .then(r => setTools(r.data))
       .finally(() => setLoading(false));
-  }, [q, category, city, maxPrice, radiusKm, userLocation]);
+  }, [q, category, city, listingType, maxPrice, radiusKm, userLocation]);
 
   const updateParam = (k, v) => {
     const p = new URLSearchParams(params);
@@ -118,6 +158,21 @@ export default function Browse() {
               {categories.map(c => <SelectItem key={c.slug} value={c.slug}>{t(`categories.${c.slug}`, c.name)}</SelectItem>)}
             </SelectContent>
           </Select>
+
+          {/* Rent vs Buy toggle */}
+          <div className="flex gap-0.5 bg-brand-subtle rounded-xl p-0.5" data-testid="browse-listing-type">
+            {[
+              { v: "all", label: t("browse.type_all") },
+              { v: "rent", label: t("browse.type_rent") },
+              { v: "sell", label: t("browse.type_sell") },
+            ].map(o => (
+              <button key={o.v} onClick={() => updateParam("listing_type", o.v)}
+                data-testid={`listing-type-${o.v}`}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${listingType === o.v ? 'bg-white text-brand-text shadow-sm' : 'text-brand-muted'}`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
 
           <Input
             data-testid="browse-city-input"

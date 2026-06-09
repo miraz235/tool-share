@@ -29,6 +29,9 @@ export default function ToolDetail() {
   const [message, setMessage] = useState("");
   const [favorite, setFavorite] = useState(false);
   const [booking, setBooking] = useState(false);
+  const [insuranceTier, setInsuranceTier] = useState("none");
+  const [insuranceTiers, setInsuranceTiers] = useState({});
+  const [buying, setBuying] = useState(false);
   const [unavailableDates, setUnavailableDates] = useState(new Set());
 
   useEffect(() => {
@@ -37,6 +40,7 @@ export default function ToolDetail() {
     api.get(`/tools/${id}/unavailable_dates`).then(r => {
       setUnavailableDates(new Set(r.data.dates || []));
     }).catch(() => {});
+    api.get(`/insurance/tiers`).then(r => setInsuranceTiers(r.data)).catch(() => {});
   }, [id]);
 
   useEffect(() => {
@@ -75,6 +79,7 @@ export default function ToolDetail() {
         pickup_method: pickupMethod,
         delivery_address: pickupMethod === "delivery" ? deliveryAddress : null,
         message_to_owner: message,
+        insurance_tier: insuranceTier,
       });
       toast.success("Booking request sent!");
       nav(`/bookings/${res.data.id}`);
@@ -82,6 +87,21 @@ export default function ToolDetail() {
       toast.error(e.response?.data?.detail || "Failed to create booking");
     } finally {
       setBooking(false);
+    }
+  };
+
+  const submitBuy = async () => {
+    if (!user) { nav("/login"); return; }
+    if (!window.confirm(`Confirm purchase for $${tool.sale_price}?`)) return;
+    setBuying(true);
+    try {
+      const r = await api.post("/purchases", null, { params: { tool_id: tool.id } });
+      toast.success("Purchase reserved! Check your dashboard.");
+      nav(`/dashboard`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Purchase failed");
+    } finally {
+      setBuying(false);
     }
   };
 
@@ -307,8 +327,34 @@ export default function ToolDetail() {
               {days > 0 && (
                 <div className="bg-brand-subtle rounded-xl p-4 mb-4 text-sm space-y-1">
                   <div className="flex justify-between"><span>${tool.daily_price} × {days} {days > 1 ? t("common.days") : t("common.day")}</span><span>${total}</span></div>
+                  {insuranceTier !== "none" && insuranceTiers[insuranceTier] && (
+                    <div className="flex justify-between text-brand-muted"><span>{t("tool.protection")} × {days}</span><span>${(insuranceTiers[insuranceTier].daily_fee * days).toFixed(2)}</span></div>
+                  )}
                   {tool.security_deposit > 0 && <div className="flex justify-between text-brand-muted"><span>{t("tool.deposit_label")}</span><span>${tool.security_deposit}</span></div>}
-                  <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>{t("common.total")}</span><span>${total + (tool.security_deposit || 0)}</span></div>
+                  <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>{t("common.total")}</span>
+                    <span>${(total + (insuranceTiers[insuranceTier]?.daily_fee || 0) * days + (tool.security_deposit || 0)).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Insurance picker */}
+              {Object.keys(insuranceTiers).length > 0 && (
+                <div className="mb-4">
+                  <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-2 block">{t("tool.protection")}</Label>
+                  <div className="space-y-2" data-testid="insurance-picker">
+                    {Object.entries(insuranceTiers).map(([key, val]) => (
+                      <label key={key}
+                        className={`flex items-center justify-between border border-brand-border rounded-xl p-3 cursor-pointer transition-colors ${insuranceTier === key ? 'bg-brand-primary/5 border-brand-primary' : ''}`}
+                        data-testid={`insurance-tier-${key}`}>
+                        <div>
+                          <input type="radio" name="insurance" checked={insuranceTier === key}
+                            onChange={() => setInsuranceTier(key)} className="sr-only" />
+                          <div className="text-sm font-semibold">{val.label}</div>
+                        </div>
+                        <div className="text-xs font-bold text-brand-secondary">{val.daily_fee > 0 ? `+$${val.daily_fee}/${t("common.day")}` : t("common.free")}</div>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -317,6 +363,21 @@ export default function ToolDetail() {
                 className="w-full bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold h-12">
                 {booking ? t("auth.signing_in") : user ? t("tool.request_to_book") : t("tool.sign_in_to_book")}
               </Button>
+
+              {/* Buy option */}
+              {(tool.listing_type === "sell" || tool.listing_type === "both") && tool.sale_price > 0 && !tool.is_sold && (
+                <div className="border-t border-brand-border mt-4 pt-4">
+                  <div className="flex items-baseline justify-between mb-2">
+                    <span className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("tool.buy_outright")}</span>
+                    <span className="font-heading text-2xl font-extrabold text-brand-primary">${tool.sale_price}</span>
+                  </div>
+                  <Button onClick={submitBuy} disabled={buying} variant="outline"
+                    data-testid="buy-tool-btn"
+                    className="w-full rounded-xl font-semibold border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white h-11">
+                    {buying ? t("booking.redirecting") : t("tool.buy_now")}
+                  </Button>
+                </div>
+              )}
               <p className="text-xs text-brand-muted text-center mt-3">{t("tool.not_charged_yet")}</p>
             </div>
           </div>

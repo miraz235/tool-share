@@ -438,6 +438,15 @@ def build_p1_router(db, current_user_dep, get_user_by_id) -> APIRouter:
         await db.bookings.update_one({"id": booking_id}, {"$set": {"dispute_open": new_val}})
         return {"dispute_open": new_val}
 
+    @r.put("/admin/tools/{tool_id}/feature")
+    async def admin_toggle_feature(tool_id: str, _: dict = Depends(admin_required)):
+        tool = await db.tools.find_one({"id": tool_id})
+        if not tool:
+            raise HTTPException(404, "Not found")
+        new_val = not tool.get("is_featured", False)
+        await db.tools.update_one({"id": tool_id}, {"$set": {"is_featured": new_val}})
+        return {"is_featured": new_val}
+
     @r.get("/admin/email_log")
     async def admin_email_log(_: dict = Depends(admin_required)):
         logs = await db.email_log.find({}, {"_id": 0}).sort("sent_at", -1).limit(100).to_list(length=100)

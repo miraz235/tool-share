@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { imageUrl } from "@/lib/api";
-import { Heart, MapPin, Star } from "lucide-react";
+import { Heart, MapPin, Star, Sparkles, Tag } from "lucide-react";
 import { useState } from "react";
 
 export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
@@ -9,6 +9,7 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
   const [imgError, setImgError] = useState(false);
   const fallback = "https://images.unsplash.com/photo-1563440205176-c565cd7302e4?w=800&q=80&auto=format";
   const img = !imgError && tool.images?.[0] ? imageUrl(tool.images[0]) : fallback;
+  const forSale = tool.listing_type === "sell" || tool.listing_type === "both";
 
   return (
     <Link
@@ -24,6 +25,18 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
           onError={() => setImgError(true)}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+          {tool.is_featured && (
+            <div className="bg-brand-secondary text-white rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-md" data-testid={`featured-badge-${tool.id}`}>
+              <Sparkles className="w-3 h-3" /> {t("common.featured")}
+            </div>
+          )}
+          {forSale && tool.sale_price > 0 && (
+            <div className="bg-brand-primary text-white rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-md">
+              <Tag className="w-3 h-3" /> {t("common.for_sale")}
+            </div>
+          )}
+        </div>
         {onToggleFavorite && (
           <button
             data-testid={`favorite-btn-${tool.id}`}
@@ -56,9 +69,14 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
           <span className="mx-1.5">·</span>
           <span className="capitalize">{tool.condition}</span>
         </div>
-        <div className="flex items-baseline gap-1">
-          <span className="font-heading font-extrabold text-xl text-brand-secondary">${tool.daily_price}</span>
-          <span className="text-xs text-brand-muted">{t("common.per_day")}</span>
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="flex items-baseline gap-1">
+            <span className="font-heading font-extrabold text-xl text-brand-secondary">${tool.daily_price}</span>
+            <span className="text-xs text-brand-muted">{t("common.per_day")}</span>
+          </div>
+          {forSale && tool.sale_price > 0 && (
+            <div className="text-xs font-semibold text-brand-primary">${tool.sale_price} {t("common.buy")}</div>
+          )}
         </div>
       </div>
     </Link>

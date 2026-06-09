@@ -202,17 +202,29 @@ export default function Admin() {
                     <th className="p-3 font-semibold">{t("admin.price_col")}</th>
                     <th className="p-3 font-semibold">{t("admin.views")}</th>
                     <th className="p-3 font-semibold">{t("admin.rating")}</th>
+                    <th className="p-3 font-semibold">{t("common.featured")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tools.map(t => (
-                    <tr key={t.id} className="border-t border-brand-border" data-testid={`admin-tool-${t.id}`}>
-                      <td className="p-3"><Link to={`/tools/${t.id}`} className="hover:underline font-semibold">{t.title}</Link></td>
-                      <td className="p-3 text-brand-muted capitalize">{t.category.replace('-', ' ')}</td>
-                      <td className="p-3 text-brand-muted">{t.location?.city}</td>
-                      <td className="p-3 font-semibold">${t.daily_price}/d</td>
-                      <td className="p-3 text-brand-muted">{t.view_count}</td>
-                      <td className="p-3">{t.rating_count > 0 ? `${t.rating_avg.toFixed(1)} (${t.rating_count})` : "—"}</td>
+                  {tools.map(tool => (
+                    <tr key={tool.id} className="border-t border-brand-border" data-testid={`admin-tool-${tool.id}`}>
+                      <td className="p-3"><Link to={`/tools/${tool.id}`} className="hover:underline font-semibold">{tool.title}</Link></td>
+                      <td className="p-3 text-brand-muted capitalize">{tool.category.replace('-', ' ')}</td>
+                      <td className="p-3 text-brand-muted">{tool.location?.city}</td>
+                      <td className="p-3 font-semibold">${tool.daily_price}/d</td>
+                      <td className="p-3 text-brand-muted">{tool.view_count}</td>
+                      <td className="p-3">{tool.rating_count > 0 ? `${tool.rating_avg.toFixed(1)} (${tool.rating_count})` : "—"}</td>
+                      <td className="p-3">
+                        <Switch checked={!!tool.is_featured}
+                          onCheckedChange={async () => {
+                            try {
+                              const r = await api.put(`/admin/tools/${tool.id}/feature`);
+                              setTools(tools.map(x => x.id === tool.id ? { ...x, is_featured: r.data.is_featured } : x));
+                              toast.success(t("admin.updated"));
+                            } catch { toast.error("Failed"); }
+                          }}
+                          data-testid={`feature-toggle-${tool.id}`} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

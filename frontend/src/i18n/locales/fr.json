@@ -42,6 +42,9 @@
     "deposit": "Caution",
     "total": "Total",
     "verified": "Vérifié",
+    "featured": "À la une",
+    "for_sale": "À vendre",
+    "buy": "à acheter",
     "joined": "Inscrit",
     "reviews_count": "avis"
   },
@@ -98,7 +101,10 @@
     "use_my_location": "Utiliser ma position",
     "view_split": "Mixte",
     "view_grid": "Grille",
-    "view_map": "Carte"
+    "view_map": "Carte",
+    "type_all": "Tout",
+    "type_rent": "Louer",
+    "type_sell": "Acheter"
   },
   "tool": {
     "about": "À propos de cet outil",
@@ -112,6 +118,9 @@
     "approximate_location": "Emplacement approximatif",
     "exact_location_note": "L'adresse exacte de récupération est communiquée après le paiement.",
     "exact_revealed": "Emplacement et adresse exacts",
+    "protection": "Plan de protection",
+    "buy_outright": "Ou acheter directement",
+    "buy_now": "Acheter maintenant",
     "reviews": "Avis",
     "no_reviews": "Aucun avis pour l'instant. Soyez le premier à laisser un avis.",
     "rental_dates": "Dates de location",

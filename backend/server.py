@@ -160,12 +160,17 @@ class ToolIn(BaseModel):
     delivery_available: bool = False
     delivery_radius_km: float = 0
     unavailable_dates: List[str] = []
+    # Buying / selling
+    listing_type: Literal["rent", "sell", "both"] = "rent"
+    sale_price: float = 0
 
 
 class Tool(ToolIn):
     id: str
     owner_id: str
     is_available: bool = True
+    is_sold: bool = False
+    is_featured: bool = False
     view_count: int = 0
     rating_avg: float = 0.0
     rating_count: int = 0
@@ -179,6 +184,7 @@ class BookingIn(BaseModel):
     pickup_method: Literal["pickup", "delivery"] = "pickup"
     delivery_address: Optional[str] = None
     message_to_owner: Optional[str] = None
+    insurance_tier: Literal["none", "basic", "premium"] = "none"
 
 
 class Booking(BaseModel):
@@ -523,6 +529,8 @@ async def create_tool(payload: ToolIn, user: dict = Depends(current_user)):
         "id": tool_id,
         "owner_id": user["id"],
         "is_available": True,
+        "is_sold": False,
+        "is_featured": False,
         "view_count": 0,
         "rating_avg": 0.0,
         "rating_count": 0,
@@ -537,6 +545,7 @@ async def create_tool(payload: ToolIn, user: dict = Depends(current_user)):
 async def list_tools(
     q: Optional[str] = None,
     category: Optional[str] = None,
+    listing_type: Optional[str] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     city: Optional[str] = None,
@@ -545,9 +554,10 @@ async def list_tools(
     lng: Optional[float] = None,
     radius_km: float = 50.0,
     owner_id: Optional[str] = None,
+    featured_only: bool = False,
     limit: int = 60,
 ):
-    filt = {"is_available": True}
+    filt = {"is_available": True, "is_sold": {"$ne": True}}
     if q:
         filt["$or"] = [
             {"title": {"$regex": q, "$options": "i"}},
@@ -555,6 +565,9 @@ async def list_tools(
         ]
     if category:
         filt["category"] = category
+    if listing_type and listing_type in ("rent", "sell"):
+        # tools with listing_type == filter OR == "both"
+        filt["listing_type"] = {"$in": [listing_type, "both"]}
     if min_price is not None:
         filt["daily_price"] = {"$gte": min_price}
     if max_price is not None:
@@ -565,22 +578,26 @@ async def list_tools(
         filt["location.postal_code"] = {"$regex": f"^{postal_code}", "$options": "i"}
     if owner_id:
         filt["owner_id"] = owner_id
+    if featured_only:
+        filt["is_featured"] = True
 
-    cur = db.tools.find(filt, {"_id": 0}).sort("created_at", -1).limit(limit)
+    # Featured first, then by recency
+    cur = db.tools.find(filt, {"_id": 0}).sort([("is_featured", -1), ("created_at", -1)]).limit(limit)
     tools = await cur.to_list(length=limit)
 
     if lat is not None and lng is not None:
         result = []
-        for t in tools:
-            tl = t.get("location", {})
+        for tool in tools:
+            tl = tool.get("location", {})
             try:
                 d = haversine_km(lat, lng, tl["lat"], tl["lng"])
             except Exception:
                 d = 99999
             if d <= radius_km:
-                t["distance_km"] = round(d, 1)
-                result.append(t)
-        result.sort(key=lambda x: x["distance_km"])
+                tool["distance_km"] = round(d, 1)
+                result.append(tool)
+        # keep featured-first sort
+        result.sort(key=lambda x: (not x.get("is_featured", False), x.get("distance_km", 999)))
         return result
     return tools
 
@@ -704,6 +721,61 @@ def _days_between(start: str, end: str) -> int:
     return max(1, (e - s).days + 1)
 
 
+INSURANCE_TIERS = {
+    "none": {"daily_fee": 0.0, "label": "No protection"},
+    "basic": {"daily_fee": 8.0, "label": "Basic — $1,000 coverage"},
+    "premium": {"daily_fee": 20.0, "label": "Premium — $5,000 coverage + theft"},
+}
+
+
+@api.get("/insurance/tiers")
+async def insurance_tiers():
+    return INSURANCE_TIERS
+
+
+@api.post("/purchases")
+async def create_purchase(tool_id: str, user: dict = Depends(current_user)):
+    """Reserve a tool for outright purchase. Payment is handled via the same Stripe checkout flow (use the returned purchase_id in place of booking_id)."""
+    tool = await db.tools.find_one({"id": tool_id})
+    if not tool:
+        raise HTTPException(404, "Tool not found")
+    if tool["owner_id"] == user["id"]:
+        raise HTTPException(400, "Cannot buy your own tool")
+    if tool.get("listing_type") not in ("sell", "both"):
+        raise HTTPException(400, "This tool is not for sale")
+    if tool.get("is_sold"):
+        raise HTTPException(409, "Already sold")
+    if not tool.get("sale_price") or tool["sale_price"] <= 0:
+        raise HTTPException(400, "Tool has no sale price set")
+    purchase_id = f"pur_{uuid.uuid4().hex[:12]}"
+    doc = {
+        "id": purchase_id,
+        "tool_id": tool_id,
+        "buyer_id": user["id"],
+        "owner_id": tool["owner_id"],
+        "amount": float(tool["sale_price"]),
+        "paid": False,
+        "status": "pending",
+        "created_at": now_iso(),
+    }
+    await db.purchases.insert_one(doc)
+    # mark tool reserved so it stops appearing in active listings
+    await db.tools.update_one({"id": tool_id}, {"$set": {"is_sold": True}})
+    owner = await get_user_by_id(tool["owner_id"])
+    if owner:
+        await send_email_mocked(owner["email"], f"Your tool '{tool['title']}' has been purchased",
+            f"{user['name']} bought your tool for ${tool['sale_price']}. Confirm pickup details.", db=db)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.get("/purchases")
+async def list_purchases(role: Literal["buyer", "owner"] = "buyer", user: dict = Depends(current_user)):
+    key = "buyer_id" if role == "buyer" else "owner_id"
+    cur = db.purchases.find({key: user["id"]}, {"_id": 0}).sort("created_at", -1)
+    return await cur.to_list(length=200)
+
+
 @api.post("/bookings", response_model=Booking)
 async def create_booking(payload: BookingIn, user: dict = Depends(current_user)):
     tool = await db.tools.find_one({"id": payload.tool_id})
@@ -713,11 +785,12 @@ async def create_booking(payload: BookingIn, user: dict = Depends(current_user))
         raise HTTPException(400, "Cannot book your own tool")
     if payload.start_date > payload.end_date:
         raise HTTPException(400, "End date must be after start date")
-    # Anti-double-booking guard
     if await has_booking_conflict(db, payload.tool_id, payload.start_date, payload.end_date):
         raise HTTPException(409, "Tool already booked for these dates")
     days = _days_between(payload.start_date, payload.end_date)
-    total = days * float(tool["daily_price"])
+    rental = days * float(tool["daily_price"])
+    insurance_fee = days * INSURANCE_TIERS.get(payload.insurance_tier, INSURANCE_TIERS["none"])["daily_fee"]
+    total = rental + insurance_fee
     deposit = float(tool.get("security_deposit", 0))
     booking_id = f"bk_{uuid.uuid4().hex[:12]}"
     doc = {
@@ -729,6 +802,9 @@ async def create_booking(payload: BookingIn, user: dict = Depends(current_user))
         "end_date": payload.end_date,
         "total_price": total,
         "deposit": deposit,
+        "rental_price": rental,
+        "insurance_tier": payload.insurance_tier,
+        "insurance_fee": insurance_fee,
         "status": "pending",
         "pickup_method": payload.pickup_method,
         "delivery_address": payload.delivery_address,
@@ -738,13 +814,12 @@ async def create_booking(payload: BookingIn, user: dict = Depends(current_user))
         "updated_at": now_iso(),
     }
     await db.bookings.insert_one(doc)
-    # Notify owner (MOCKED email)
     owner = await get_user_by_id(tool["owner_id"])
     if owner:
         await send_email_mocked(
             owner["email"],
             f"New booking request for {tool['title']}",
-            f"{user['name']} requested {tool['title']} from {payload.start_date} to {payload.end_date}. Review it on ToolShare.",
+            f"{user['name']} requested {tool['title']} from {payload.start_date} to {payload.end_date}.",
             db=db
         )
     doc.pop("_id", None)
