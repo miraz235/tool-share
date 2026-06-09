@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal } from "lucide-react";
+import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal, Compass, Loader2 } from "lucide-react";
+
+const DEFAULT_RADIUS = 50;
+const MAX_PRICE = 500;
 
 export default function Browse() {
   const { t } = useTranslation();
@@ -18,13 +21,34 @@ export default function Browse() {
   const [tools, setTools] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("split"); // split | grid | map
+  const [view, setView] = useState("split");
   const [selectedId, setSelectedId] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   const q = params.get("q") || "";
   const category = params.get("category") || "all";
   const city = params.get("city") || "";
-  const maxPrice = parseInt(params.get("max_price") || "500", 10);
+
+  // Local UI state for live slider feedback
+  const [maxPriceUI, setMaxPriceUI] = useState(parseInt(params.get("max_price") || String(MAX_PRICE), 10));
+  const [radiusUI, setRadiusUI] = useState(parseInt(params.get("radius_km") || String(DEFAULT_RADIUS), 10));
+  const maxPrice = parseInt(params.get("max_price") || String(MAX_PRICE), 10);
+  const radiusKm = parseInt(params.get("radius_km") || String(DEFAULT_RADIUS), 10);
+
+  // Geolocate on mount
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoLoading(false);
+      },
+      () => { setGeoLoading(false); },
+      { maximumAge: 5 * 60 * 1000, timeout: 8000 }
+    );
+  }, []);
 
   useEffect(() => {
     api.get("/categories").then(r => setCategories(r.data)).catch(() => {});
@@ -36,17 +60,36 @@ export default function Browse() {
     if (q) queryParams.q = q;
     if (category && category !== "all") queryParams.category = category;
     if (city) queryParams.city = city;
-    if (maxPrice && maxPrice < 500) queryParams.max_price = maxPrice;
+    if (maxPrice && maxPrice < MAX_PRICE) queryParams.max_price = maxPrice;
+    if (userLocation) {
+      queryParams.lat = userLocation.lat;
+      queryParams.lng = userLocation.lng;
+      queryParams.radius_km = radiusKm;
+    }
     api.get("/tools", { params: queryParams })
       .then(r => setTools(r.data))
       .finally(() => setLoading(false));
-  }, [q, category, city, maxPrice]);
+  }, [q, category, city, maxPrice, radiusKm, userLocation]);
 
   const updateParam = (k, v) => {
     const p = new URLSearchParams(params);
     if (v && v !== "all") p.set(k, v); else p.delete(k);
     setParams(p);
   };
+
+  const requestGeo = () => {
+    if (!navigator.geolocation) return;
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoLoading(false);
+      },
+      () => { setGeoLoading(false); }
+    );
+  };
+
+  const mapCenter = userLocation ? [userLocation.lat, userLocation.lng] : undefined;
 
   return (
     <div className="min-h-screen bg-brand-bg">
@@ -84,16 +127,41 @@ export default function Browse() {
             className="w-36 rounded-xl"
           />
 
+          {/* Max price slider */}
           <div className="flex items-center gap-2 px-2">
             <SlidersHorizontal className="w-4 h-4 text-brand-muted" />
-            <span className="text-sm font-medium">{t("browse.max_price", { value: maxPrice })}</span>
+            <span className="text-sm font-medium whitespace-nowrap min-w-[110px]">{t("browse.max_price", { value: maxPriceUI })}</span>
             <Slider
-              value={[maxPrice]}
-              onValueCommit={(v) => updateParam("max_price", String(v[0]))}
-              max={500} min={10} step={10}
-              className="w-40"
+              value={[maxPriceUI]}
+              onValueChange={(v) => setMaxPriceUI(v[0])}
+              onValueCommit={(v) => updateParam("max_price", v[0] >= MAX_PRICE ? "" : String(v[0]))}
+              max={MAX_PRICE} min={10} step={10}
+              className="w-32"
               data-testid="browse-price-slider"
             />
+          </div>
+
+          {/* Radius slider (only meaningful when geolocation is set) */}
+          <div className="flex items-center gap-2 px-2 border-l border-brand-border pl-3">
+            <Compass className={`w-4 h-4 ${userLocation ? 'text-brand-primary' : 'text-brand-muted'}`} />
+            <span className="text-sm font-medium whitespace-nowrap min-w-[80px]">{t("browse.radius", { value: radiusUI })}</span>
+            <Slider
+              value={[radiusUI]}
+              onValueChange={(v) => setRadiusUI(v[0])}
+              onValueCommit={(v) => updateParam("radius_km", v[0] === DEFAULT_RADIUS && !userLocation ? "" : String(v[0]))}
+              max={200} min={5} step={5}
+              className="w-32"
+              disabled={!userLocation}
+              data-testid="browse-radius-slider"
+            />
+            {!userLocation && (
+              <Button onClick={requestGeo} variant="outline" size="sm"
+                disabled={geoLoading}
+                data-testid="browse-use-location-btn"
+                className="rounded-lg border-brand-border h-8 px-2 text-xs">
+                {geoLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : t("browse.use_my_location")}
+              </Button>
+            )}
           </div>
 
           <div className="ml-auto flex gap-1 bg-brand-subtle rounded-xl p-1">
@@ -134,10 +202,9 @@ export default function Browse() {
           </div>
         ) : view === "map" ? (
           <div className="h-[calc(100vh-160px)] p-4">
-            <MapView tools={tools} onSelect={(t) => nav(`/tools/${t.id}`)} selectedId={selectedId} />
+            <MapView tools={tools} center={mapCenter} onSelect={(t) => nav(`/tools/${t.id}`)} selectedId={selectedId} />
           </div>
         ) : (
-          // SPLIT view
           <div className="grid lg:grid-cols-[1fr_1.4fr] h-[calc(100vh-160px)]">
             <div className="overflow-y-auto px-6 py-6 border-r border-brand-border">
               <div className="mb-4 text-sm text-brand-muted">{tools.length === 1 ? t("browse.tools_available_one", { count: tools.length }) : t("browse.tools_available_other", { count: tools.length })}</div>
@@ -150,7 +217,7 @@ export default function Browse() {
               </div>
             </div>
             <div className="hidden lg:block p-4">
-              <MapView tools={tools} onSelect={(t) => setSelectedId(t.id)} selectedId={selectedId} />
+              <MapView tools={tools} center={mapCenter} onSelect={(t) => setSelectedId(t.id)} selectedId={selectedId} />
             </div>
           </div>
         )}

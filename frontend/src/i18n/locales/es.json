@@ -93,6 +93,8 @@
     "no_tools_found": "Sin herramientas encontradas",
     "no_tools_subtitle": "Prueba ampliar los filtros o explorar todas las categorías.",
     "max_price": "Máx ${{value}}/día",
+    "radius": "{{value}} km",
+    "use_my_location": "Usar mi ubicación",
     "view_split": "Mixta",
     "view_grid": "Lista",
     "view_map": "Mapa"

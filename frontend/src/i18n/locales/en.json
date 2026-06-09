@@ -93,6 +93,8 @@
     "no_tools_found": "No tools found",
     "no_tools_subtitle": "Try widening your filters or browsing all categories.",
     "max_price": "Max ${{value}}/day",
+    "radius": "{{value}} km",
+    "use_my_location": "Use my location",
     "view_split": "Split",
     "view_grid": "Grid",
     "view_map": "Map"
