@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth.jsx";
 import { api, imageUrl } from "@/lib/api";
 import Header from "@/components/Header";
@@ -11,6 +12,7 @@ import { MessageSquare, Send } from "lucide-react";
 
 export default function Messages() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [threads, setThreads] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -57,13 +59,13 @@ export default function Messages() {
     <div className="min-h-screen bg-brand-bg">
       <Header />
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <h1 className="font-heading text-3xl font-extrabold mb-6">Messages</h1>
+        <h1 className="font-heading text-3xl font-extrabold mb-6">{t("messages_page.title")}</h1>
 
         {threads.length === 0 ? (
           <div className="bg-white border border-brand-border rounded-2xl p-16 text-center" data-testid="messages-empty">
             <MessageSquare className="w-12 h-12 mx-auto text-brand-muted/40 mb-4" />
-            <h3 className="font-heading text-xl font-bold mb-1">No messages yet</h3>
-            <p className="text-brand-muted text-sm">Once you have an active booking, you can chat here.</p>
+            <h3 className="font-heading text-xl font-bold mb-1">{t("messages_page.no_messages")}</h3>
+            <p className="text-brand-muted text-sm">{t("messages_page.no_messages_sub")}</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-[320px_1fr] gap-6 h-[calc(100vh-220px)]">
@@ -124,7 +126,7 @@ export default function Messages() {
                 <Input
                   value={draft} onChange={e => setDraft(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') send(); }}
-                  placeholder="Type a message…"
+                  placeholder={t("booking.type_message")}
                   data-testid="message-input-field"
                   className="rounded-xl flex-1" />
                 <Button onClick={send} disabled={!draft.trim()}

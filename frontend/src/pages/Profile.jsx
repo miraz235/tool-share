@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -9,6 +10,7 @@ import { Star, ShieldCheck, MapPin, Calendar } from "lucide-react";
 
 export default function Profile() {
   const { id } = useParams();
+  const { t, i18n } = useTranslation();
   const [user, setUser] = useState(null);
   const [tools, setTools] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -22,7 +24,7 @@ export default function Profile() {
   if (!user) return (<div className="min-h-screen bg-brand-bg"><Header /><div className="p-16 text-center text-brand-muted">Loading…</div></div>);
 
   const initials = user.name?.split(" ").map(n => n[0]).slice(0, 2).join("");
-  const joined = user.created_at ? new Date(user.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "—";
+  const joined = user.created_at ? new Date(user.created_at).toLocaleDateString(i18n.language, { month: "long", year: "numeric" }) : "—";
 
   return (
     <div className="min-h-screen bg-brand-bg">
@@ -38,24 +40,24 @@ export default function Profile() {
               <h1 className="font-heading text-3xl font-extrabold" data-testid="profile-name">{user.name}</h1>
               {user.is_verified && (
                 <span className="inline-flex items-center gap-1 bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full text-xs font-bold">
-                  <ShieldCheck className="w-3 h-3" /> Verified
+                  <ShieldCheck className="w-3 h-3" /> {t("common.verified")}
                 </span>
               )}
             </div>
             <div className="flex flex-wrap gap-4 text-sm text-brand-muted">
               {user.city && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {user.city}</span>}
-              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Joined {joined}</span>
+              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {t("profile.joined_in", { date: joined })}</span>
               {user.rating_count > 0 && (
-                <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-brand-secondary text-brand-secondary" /> {user.rating_avg.toFixed(1)} ({user.rating_count} reviews)</span>
+                <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-brand-secondary text-brand-secondary" /> {user.rating_avg.toFixed(1)} ({user.rating_count} {t("common.reviews_count")})</span>
               )}
             </div>
             {user.bio && <p className="text-brand-muted mt-4 leading-relaxed">{user.bio}</p>}
           </div>
         </div>
 
-        <h2 className="font-heading text-2xl font-bold mb-4">{user.name.split(" ")[0]}'s tools ({tools.length})</h2>
+        <h2 className="font-heading text-2xl font-bold mb-4">{t("profile.tools", { name: user.name.split(" ")[0] })} ({tools.length})</h2>
         {tools.length === 0 ? (
-          <div className="bg-white border border-brand-border rounded-2xl p-12 text-center text-brand-muted">No listings yet.</div>
+          <div className="bg-white border border-brand-border rounded-2xl p-12 text-center text-brand-muted">{t("profile.no_listings")}</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
             {tools.map(t => <ToolCard key={t.id} tool={t} />)}
@@ -64,7 +66,7 @@ export default function Profile() {
 
         {reviews.length > 0 && (
           <>
-            <h2 className="font-heading text-2xl font-bold mb-4">Reviews ({reviews.length})</h2>
+            <h2 className="font-heading text-2xl font-bold mb-4">{t("tool.reviews")} ({reviews.length})</h2>
             <div className="space-y-3">
               {reviews.map(r => (
                 <div key={r.id} className="bg-white border border-brand-border rounded-2xl p-5">

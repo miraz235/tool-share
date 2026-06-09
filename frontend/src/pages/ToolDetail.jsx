@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api, imageUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth.jsx";
@@ -16,6 +17,7 @@ import { Star, MapPin, Heart, Calendar as CalIcon, Package, Truck, ShieldCheck }
 
 export default function ToolDetail() {
   const { id } = useParams();
+  const { t } = useTranslation();
   const nav = useNavigate();
   const { user } = useAuth();
   const [tool, setTool] = useState(null);
@@ -122,7 +124,7 @@ export default function ToolDetail() {
           <Button variant="outline" onClick={toggleFav} data-testid="favorite-toggle"
             className="rounded-xl border-brand-border">
             <Heart className={`w-4 h-4 mr-2 ${favorite ? 'fill-brand-secondary text-brand-secondary' : ''}`} />
-            {favorite ? "Saved" : "Save"}
+            {favorite ? t("common.saved") : t("common.save")}
           </Button>
         </div>
 
@@ -165,31 +167,31 @@ export default function ToolDetail() {
               </Link>
             </div>
 
-            <h2 className="font-heading text-xl font-bold mb-3">About this tool</h2>
+            <h2 className="font-heading text-xl font-bold mb-3">{t("tool.about")}</h2>
             <p className="text-brand-muted leading-relaxed whitespace-pre-line mb-8">{tool.description}</p>
 
-            <h2 className="font-heading text-xl font-bold mb-3">Pickup & delivery</h2>
+            <h2 className="font-heading text-xl font-bold mb-3">{t("tool.pickup_delivery")}</h2>
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-white border border-brand-border rounded-2xl p-5">
                 <Package className="w-5 h-5 text-brand-primary mb-2" />
-                <div className="font-semibold">{tool.pickup_available ? "Pickup available" : "No pickup"}</div>
+                <div className="font-semibold">{tool.pickup_available ? t("tool.pickup_available") : t("tool.no_pickup")}</div>
                 <div className="text-sm text-brand-muted">{tool.location.city}</div>
               </div>
               <div className="bg-white border border-brand-border rounded-2xl p-5">
                 <Truck className="w-5 h-5 text-brand-primary mb-2" />
-                <div className="font-semibold">{tool.delivery_available ? `Delivery (${tool.delivery_radius_km}km)` : "No delivery"}</div>
-                <div className="text-sm text-brand-muted">{tool.delivery_available ? "By owner" : "—"}</div>
+                <div className="font-semibold">{tool.delivery_available ? t("tool.delivery_radius", { km: tool.delivery_radius_km }) : t("tool.no_delivery")}</div>
+                <div className="text-sm text-brand-muted">{tool.delivery_available ? t("tool.by_owner") : "—"}</div>
               </div>
             </div>
 
-            <h2 className="font-heading text-xl font-bold mb-3">Location</h2>
+            <h2 className="font-heading text-xl font-bold mb-3">{t("tool.location")}</h2>
             <div className="h-72 rounded-2xl overflow-hidden mb-8">
               <MapView tools={[tool]} center={[tool.location.lat, tool.location.lng]} />
             </div>
 
-            <h2 className="font-heading text-xl font-bold mb-3">Reviews ({reviews.length})</h2>
+            <h2 className="font-heading text-xl font-bold mb-3">{t("tool.reviews")} ({reviews.length})</h2>
             {reviews.length === 0 ? (
-              <div className="text-brand-muted text-sm">No reviews yet. Be the first to review this tool.</div>
+              <div className="text-brand-muted text-sm">{t("tool.no_reviews")}</div>
             ) : (
               <div className="space-y-4">
                 {reviews.map(r => (
@@ -218,14 +220,14 @@ export default function ToolDetail() {
             <div className="sticky top-24 bg-white border border-brand-border rounded-2xl p-6 shadow-sm">
               <div className="flex items-baseline gap-1 mb-1">
                 <span className="font-heading text-3xl font-extrabold text-brand-secondary">${tool.daily_price}</span>
-                <span className="text-brand-muted text-sm">/ day</span>
+                <span className="text-brand-muted text-sm">{t("common.per_day")}</span>
               </div>
               {tool.security_deposit > 0 && (
-                <div className="text-xs text-brand-muted mb-4">+ ${tool.security_deposit} refundable deposit</div>
+                <div className="text-xs text-brand-muted mb-4">{t("tool.deposit_refundable", { value: tool.security_deposit })}</div>
               )}
 
               <div className="border border-brand-border rounded-xl p-3 mb-4">
-                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">Rental dates</Label>
+                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("tool.rental_dates")}</Label>
                 <Calendar
                   mode="range"
                   selected={dateRange}
@@ -237,20 +239,20 @@ export default function ToolDetail() {
               </div>
 
               <div className="mb-4">
-                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-2 block">Method</Label>
+                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-2 block">{t("tool.method")}</Label>
                 <RadioGroup value={pickupMethod} onValueChange={setPickupMethod} className="grid grid-cols-2 gap-2">
                   {tool.pickup_available && (
                     <label className={`border border-brand-border rounded-xl p-3 cursor-pointer ${pickupMethod === 'pickup' ? 'bg-brand-primary/5 border-brand-primary' : ''}`}>
                       <RadioGroupItem value="pickup" className="sr-only" />
                       <Package className="w-4 h-4 mb-1" />
-                      <div className="text-sm font-semibold">Pickup</div>
+                      <div className="text-sm font-semibold">{t("tool.pickup")}</div>
                     </label>
                   )}
                   {tool.delivery_available && (
                     <label className={`border border-brand-border rounded-xl p-3 cursor-pointer ${pickupMethod === 'delivery' ? 'bg-brand-primary/5 border-brand-primary' : ''}`}>
                       <RadioGroupItem value="delivery" className="sr-only" />
                       <Truck className="w-4 h-4 mb-1" />
-                      <div className="text-sm font-semibold">Delivery</div>
+                      <div className="text-sm font-semibold">{t("tool.delivery")}</div>
                     </label>
                   )}
                 </RadioGroup>
@@ -258,34 +260,34 @@ export default function ToolDetail() {
 
               {pickupMethod === "delivery" && (
                 <div className="mb-4">
-                  <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">Delivery address</Label>
+                  <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("tool.delivery_address")}</Label>
                   <Textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)}
-                    placeholder="Street, city, postal code"
+                    placeholder={t("tool.delivery_address_ph")}
                     className="mt-1 rounded-xl" data-testid="delivery-address-input" />
                 </div>
               )}
 
               <div className="mb-4">
-                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">Message to owner</Label>
+                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("tool.message_to_owner")}</Label>
                 <Textarea value={message} onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Hi! I'd like to use this tool for…"
+                  placeholder={t("tool.message_ph")}
                   className="mt-1 rounded-xl" data-testid="message-input" />
               </div>
 
               {days > 0 && (
                 <div className="bg-brand-subtle rounded-xl p-4 mb-4 text-sm space-y-1">
-                  <div className="flex justify-between"><span>${tool.daily_price} × {days} day{days > 1 ? 's' : ''}</span><span>${total}</span></div>
-                  {tool.security_deposit > 0 && <div className="flex justify-between text-brand-muted"><span>Deposit (refundable)</span><span>${tool.security_deposit}</span></div>}
-                  <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>Total today</span><span>${total + (tool.security_deposit || 0)}</span></div>
+                  <div className="flex justify-between"><span>${tool.daily_price} × {days} {days > 1 ? t("common.days") : t("common.day")}</span><span>${total}</span></div>
+                  {tool.security_deposit > 0 && <div className="flex justify-between text-brand-muted"><span>{t("tool.deposit_label")}</span><span>${tool.security_deposit}</span></div>}
+                  <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>{t("common.total")}</span><span>${total + (tool.security_deposit || 0)}</span></div>
                 </div>
               )}
 
               <Button onClick={submitBooking} disabled={booking}
                 data-testid="request-booking-btn"
                 className="w-full bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold h-12">
-                {booking ? "Sending…" : user ? "Request to book" : "Sign in to book"}
+                {booking ? t("auth.signing_in") : user ? t("tool.request_to_book") : t("tool.sign_in_to_book")}
               </Button>
-              <p className="text-xs text-brand-muted text-center mt-3">You won't be charged yet.</p>
+              <p className="text-xs text-brand-muted text-center mt-3">{t("tool.not_charged_yet")}</p>
             </div>
           </div>
         </div>

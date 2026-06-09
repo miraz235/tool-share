@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import Header from "@/components/Header";
 import ToolCard from "@/components/ToolCard";
 import MapView from "@/components/MapView";
@@ -11,6 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal } from "lucide-react";
 
 export default function Browse() {
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const [tools, setTools] = useState([]);
@@ -57,7 +59,7 @@ export default function Browse() {
             <Search className="w-4 h-4 text-brand-muted" />
             <Input
               data-testid="browse-search-input"
-              placeholder="Search tools..."
+              placeholder={`${t("common.search")}...`}
               defaultValue={q}
               onKeyDown={(e) => { if (e.key === 'Enter') updateParam("q", e.currentTarget.value); }}
               className="border-0 bg-transparent focus-visible:ring-0 px-0 h-10"
@@ -66,17 +68,17 @@ export default function Browse() {
 
           <Select value={category} onValueChange={(v) => updateParam("category", v)}>
             <SelectTrigger className="w-44 rounded-xl" data-testid="browse-category-select">
-              <SelectValue placeholder="All categories" />
+              <SelectValue placeholder={t("common.all_categories")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {categories.map(c => <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>)}
+              <SelectItem value="all">{t("common.all_categories")}</SelectItem>
+              {categories.map(c => <SelectItem key={c.slug} value={c.slug}>{t(`categories.${c.slug}`, c.name)}</SelectItem>)}
             </SelectContent>
           </Select>
 
           <Input
             data-testid="browse-city-input"
-            placeholder="City"
+            placeholder={t("common.city")}
             defaultValue={city}
             onKeyDown={(e) => { if (e.key === 'Enter') updateParam("city", e.currentTarget.value); }}
             className="w-36 rounded-xl"
@@ -84,7 +86,7 @@ export default function Browse() {
 
           <div className="flex items-center gap-2 px-2">
             <SlidersHorizontal className="w-4 h-4 text-brand-muted" />
-            <span className="text-sm font-medium">Max ${maxPrice}/day</span>
+            <span className="text-sm font-medium">{t("browse.max_price", { value: maxPrice })}</span>
             <Slider
               value={[maxPrice]}
               onValueCommit={(v) => updateParam("max_price", String(v[0]))}
@@ -97,15 +99,15 @@ export default function Browse() {
           <div className="ml-auto flex gap-1 bg-brand-subtle rounded-xl p-1">
             <button onClick={() => setView("split")} data-testid="view-split"
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${view === 'split' ? 'bg-white text-brand-text shadow-sm' : 'text-brand-muted'}`}>
-              Split
+              {t("browse.view_split")}
             </button>
             <button onClick={() => setView("grid")} data-testid="view-grid"
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${view === 'grid' ? 'bg-white text-brand-text shadow-sm' : 'text-brand-muted'}`}>
-              <ListIcon className="w-3.5 h-3.5" /> Grid
+              <ListIcon className="w-3.5 h-3.5" /> {t("browse.view_grid")}
             </button>
             <button onClick={() => setView("map")} data-testid="view-map"
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${view === 'map' ? 'bg-white text-brand-text shadow-sm' : 'text-brand-muted'}`}>
-              <MapIcon className="w-3.5 h-3.5" /> Map
+              <MapIcon className="w-3.5 h-3.5" /> {t("browse.view_map")}
             </button>
           </div>
         </div>
@@ -113,19 +115,19 @@ export default function Browse() {
 
       <div className="max-w-[1600px] mx-auto">
         {loading ? (
-          <div className="p-16 text-center text-brand-muted" data-testid="browse-loading">Loading tools…</div>
+          <div className="p-16 text-center text-brand-muted" data-testid="browse-loading">{t("common.loading")}</div>
         ) : tools.length === 0 ? (
           <div className="p-16 text-center" data-testid="browse-empty">
-            <div className="font-heading text-2xl font-bold mb-2">No tools found</div>
-            <p className="text-brand-muted mb-6">Try widening your filters or browsing all categories.</p>
+            <div className="font-heading text-2xl font-bold mb-2">{t("browse.no_tools_found")}</div>
+            <p className="text-brand-muted mb-6">{t("browse.no_tools_subtitle")}</p>
             <Button onClick={() => setParams(new URLSearchParams())}
               className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">
-              Clear filters
+              {t("common.clear_filters")}
             </Button>
           </div>
         ) : view === "grid" ? (
           <div className="px-6 py-8">
-            <div className="mb-4 text-sm text-brand-muted">{tools.length} tool{tools.length !== 1 ? 's' : ''} available</div>
+            <div className="mb-4 text-sm text-brand-muted">{tools.length === 1 ? t("browse.tools_available_one", { count: tools.length }) : t("browse.tools_available_other", { count: tools.length })}</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {tools.map(t => <ToolCard key={t.id} tool={t} />)}
             </div>
@@ -138,7 +140,7 @@ export default function Browse() {
           // SPLIT view
           <div className="grid lg:grid-cols-[1fr_1.4fr] h-[calc(100vh-160px)]">
             <div className="overflow-y-auto px-6 py-6 border-r border-brand-border">
-              <div className="mb-4 text-sm text-brand-muted">{tools.length} tool{tools.length !== 1 ? 's' : ''} available</div>
+              <div className="mb-4 text-sm text-brand-muted">{tools.length === 1 ? t("browse.tools_available_one", { count: tools.length }) : t("browse.tools_available_other", { count: tools.length })}</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {tools.map(t => (
                   <div key={t.id} onMouseEnter={() => setSelectedId(t.id)} onMouseLeave={() => setSelectedId(null)}>

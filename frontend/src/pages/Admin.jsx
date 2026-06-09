@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth.jsx";
 import Header from "@/components/Header";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 
 export default function Admin() {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
   const nav = useNavigate();
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -40,7 +42,7 @@ export default function Admin() {
     try {
       await api.put(`/admin/users/${uid}`, { [field]: value });
       setUsers(users.map(u => u.id === uid ? { ...u, [field]: value } : u));
-      toast.success("Updated");
+      toast.success(t("admin.updated"));
     } catch { toast.error("Failed"); }
   };
 
@@ -67,36 +69,36 @@ export default function Admin() {
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-12">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-brand-muted font-bold mb-1">Admin</div>
-            <h1 className="font-heading text-4xl font-extrabold">Platform overview</h1>
+            <div className="text-xs uppercase tracking-[0.2em] text-brand-muted font-bold mb-1">{t("admin.label")}</div>
+            <h1 className="font-heading text-4xl font-extrabold">{t("admin.title")}</h1>
           </div>
           <Badge className="bg-brand-primary/10 text-brand-primary border-0">
-            <ShieldCheck className="w-3 h-3 mr-1" /> Administrator
+            <ShieldCheck className="w-3 h-3 mr-1" /> {t("admin.administrator")}
           </Badge>
         </div>
 
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <StatCard icon={Users} label="Users" value={stats.users} sub={`${stats.verified_users} verified`} />
-            <StatCard icon={Package} label="Listings" value={stats.tools} />
-            <StatCard icon={Calendar} label="Bookings" value={stats.bookings_total} sub={`${stats.approved_bookings} approved`} />
-            <StatCard icon={DollarSign} label="Platform revenue" value={`$${stats.revenue}`} sub={`$${stats.pending_payouts} owed`} />
+            <StatCard icon={Users} label={t("admin.users")} value={stats.users} sub={t("admin.verified", { count: stats.verified_users })} />
+            <StatCard icon={Package} label={t("admin.listings")} value={stats.tools} />
+            <StatCard icon={Calendar} label={t("admin.bookings")} value={stats.bookings_total} sub={t("admin.approved", { count: stats.approved_bookings })} />
+            <StatCard icon={DollarSign} label={t("admin.revenue")} value={`$${stats.revenue}`} sub={t("admin.owed", { value: stats.pending_payouts })} />
           </div>
         )}
 
         <Tabs defaultValue="users">
           <TabsList className="bg-white border border-brand-border rounded-xl p-1 mb-6">
             <TabsTrigger value="users" data-testid="admin-tab-users" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
-              <Users className="w-4 h-4 mr-1.5" /> Users
+              <Users className="w-4 h-4 mr-1.5" /> {t("admin.tab_users")}
             </TabsTrigger>
             <TabsTrigger value="bookings" data-testid="admin-tab-bookings" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
-              <Calendar className="w-4 h-4 mr-1.5" /> Bookings
+              <Calendar className="w-4 h-4 mr-1.5" /> {t("admin.tab_bookings")}
             </TabsTrigger>
             <TabsTrigger value="tools" data-testid="admin-tab-tools" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
-              <Package className="w-4 h-4 mr-1.5" /> Tools
+              <Package className="w-4 h-4 mr-1.5" /> {t("admin.tab_tools")}
             </TabsTrigger>
             <TabsTrigger value="email_log" data-testid="admin-tab-emails" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
-              <Mail className="w-4 h-4 mr-1.5" /> Email log
+              <Mail className="w-4 h-4 mr-1.5" /> {t("admin.tab_emails")}
             </TabsTrigger>
           </TabsList>
 
@@ -105,7 +107,7 @@ export default function Admin() {
               <Search className="w-4 h-4 text-brand-muted" />
               <Input value={search} onChange={e => setSearch(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') refresh(); }}
-                placeholder="Search by name or email"
+                placeholder={t("admin.search_users")}
                 data-testid="admin-search-input"
                 className="border-0 focus-visible:ring-0 px-0 h-10"/>
             </div>
@@ -113,11 +115,11 @@ export default function Admin() {
               <table className="w-full text-sm">
                 <thead className="bg-brand-subtle text-left">
                   <tr>
-                    <th className="p-3 font-semibold">User</th>
-                    <th className="p-3 font-semibold">Joined</th>
-                    <th className="p-3 font-semibold">Verified</th>
-                    <th className="p-3 font-semibold">Admin</th>
-                    <th className="p-3 font-semibold">Suspended</th>
+                    <th className="p-3 font-semibold">{t("admin.user")}</th>
+                    <th className="p-3 font-semibold">{t("admin.joined")}</th>
+                    <th className="p-3 font-semibold">{t("common.verified")}</th>
+                    <th className="p-3 font-semibold">{t("admin.admin")}</th>
+                    <th className="p-3 font-semibold">{t("admin.suspended")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -151,14 +153,14 @@ export default function Admin() {
               <table className="w-full text-sm">
                 <thead className="bg-brand-subtle text-left">
                   <tr>
-                    <th className="p-3 font-semibold">Tool</th>
-                    <th className="p-3 font-semibold">Renter</th>
-                    <th className="p-3 font-semibold">Owner</th>
-                    <th className="p-3 font-semibold">Dates</th>
-                    <th className="p-3 font-semibold">Total</th>
-                    <th className="p-3 font-semibold">Status</th>
-                    <th className="p-3 font-semibold">Paid</th>
-                    <th className="p-3 font-semibold">Dispute</th>
+                    <th className="p-3 font-semibold">{t("admin.tool")}</th>
+                    <th className="p-3 font-semibold">{t("admin.renter")}</th>
+                    <th className="p-3 font-semibold">{t("admin.owner")}</th>
+                    <th className="p-3 font-semibold">{t("admin.dates")}</th>
+                    <th className="p-3 font-semibold">{t("admin.total_col")}</th>
+                    <th className="p-3 font-semibold">{t("admin.status")}</th>
+                    <th className="p-3 font-semibold">{t("admin.paid")}</th>
+                    <th className="p-3 font-semibold">{t("admin.dispute")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -193,12 +195,12 @@ export default function Admin() {
               <table className="w-full text-sm">
                 <thead className="bg-brand-subtle text-left">
                   <tr>
-                    <th className="p-3 font-semibold">Title</th>
-                    <th className="p-3 font-semibold">Category</th>
-                    <th className="p-3 font-semibold">City</th>
-                    <th className="p-3 font-semibold">Price</th>
-                    <th className="p-3 font-semibold">Views</th>
-                    <th className="p-3 font-semibold">Rating</th>
+                    <th className="p-3 font-semibold">{t("admin.title_col")}</th>
+                    <th className="p-3 font-semibold">{t("admin.category_col")}</th>
+                    <th className="p-3 font-semibold">{t("admin.city_col")}</th>
+                    <th className="p-3 font-semibold">{t("admin.price_col")}</th>
+                    <th className="p-3 font-semibold">{t("admin.views")}</th>
+                    <th className="p-3 font-semibold">{t("admin.rating")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -219,7 +221,7 @@ export default function Admin() {
 
           <TabsContent value="email_log">
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl p-4 mb-4 text-sm">
-              ⚠️ <strong>MOCKED:</strong> Email notifications are logged here only. To send real emails, provide a Resend API key in <code>backend/.env</code>.
+              ⚠️ <strong>{t("admin.mocked_warning")}</strong> <code>backend/.env</code>.
             </div>
             <div className="space-y-2">
               {emails.map(e => (
@@ -233,7 +235,7 @@ export default function Admin() {
                 </div>
               ))}
               {emails.length === 0 && (
-                <div className="bg-white border border-brand-border rounded-2xl p-12 text-center text-brand-muted">No emails sent yet.</div>
+                <div className="bg-white border border-brand-border rounded-2xl p-12 text-center text-brand-muted">{t("admin.no_emails")}</div>
               )}
             </div>
           </TabsContent>

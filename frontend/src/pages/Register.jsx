@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth.jsx";
 import { toast } from "sonner";
 import Header from "@/components/Header";
@@ -19,6 +20,7 @@ const GoogleIcon = (props) => (
 
 export default function Register() {
   const { register } = useAuth();
+  const { t } = useTranslation();
   const nav = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -26,16 +28,16 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     if (form.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error(t("auth.password_short"));
       return;
     }
     setSubmitting(true);
     try {
       await register(form.email, form.password, form.name);
-      toast.success("Welcome to ToolShare!");
+      toast.success(t("auth.welcome_new"));
       nav("/dashboard");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Registration failed");
+      toast.error(err.response?.data?.detail || t("auth.register_failed"));
     } finally {
       setSubmitting(false);
     }
@@ -55,47 +57,47 @@ export default function Register() {
           <div className="inline-flex w-14 h-14 rounded-2xl bg-brand-primary items-center justify-center mb-4">
             <Wrench className="w-7 h-7 text-white" strokeWidth={2.5} />
           </div>
-          <h1 className="font-heading text-3xl font-extrabold">Join ToolShare</h1>
-          <p className="text-brand-muted mt-1">Borrow & lend tools with neighbours</p>
+          <h1 className="font-heading text-3xl font-extrabold">{t("auth.join")}</h1>
+          <p className="text-brand-muted mt-1">{t("auth.join_sub")}</p>
         </div>
 
         <div className="bg-white border border-brand-border rounded-2xl p-8 shadow-sm">
           <Button onClick={googleSignIn} variant="outline" data-testid="google-signin-btn"
             className="w-full h-12 rounded-xl border-brand-border font-semibold">
-            <GoogleIcon className="mr-2" /> Continue with Google
+            <GoogleIcon className="mr-2" /> {t("auth.continue_google")}
           </Button>
 
           <div className="flex items-center my-6">
             <div className="flex-1 h-px bg-brand-border" />
-            <span className="px-3 text-xs uppercase tracking-wider text-brand-muted font-bold">or</span>
+            <span className="px-3 text-xs uppercase tracking-wider text-brand-muted font-bold">{t("auth.or")}</span>
             <div className="flex-1 h-px bg-brand-border" />
           </div>
 
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <Label>Name</Label>
+              <Label>{t("auth.name")}</Label>
               <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})}
                 required data-testid="register-name" className="rounded-xl mt-1 h-11"/>
             </div>
             <div>
-              <Label>Email</Label>
+              <Label>{t("auth.email")}</Label>
               <Input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})}
                 required data-testid="register-email" className="rounded-xl mt-1 h-11"/>
             </div>
             <div>
-              <Label>Password</Label>
+              <Label>{t("auth.password")}</Label>
               <Input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})}
                 required minLength={6} data-testid="register-password" className="rounded-xl mt-1 h-11"/>
-              <p className="text-xs text-brand-muted mt-1">At least 6 characters</p>
+              <p className="text-xs text-brand-muted mt-1">{t("auth.password_min")}</p>
             </div>
             <Button type="submit" disabled={submitting} data-testid="register-submit"
               className="w-full h-11 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl font-semibold">
-              {submitting ? "Creating…" : "Create account"}
+              {submitting ? t("auth.creating") : t("auth.create_account")}
             </Button>
           </form>
 
           <p className="text-sm text-center text-brand-muted mt-6">
-            Already have an account? <Link to="/login" className="text-brand-primary font-semibold hover:underline" data-testid="go-to-login">Sign in</Link>
+            {t("auth.have_account")} <Link to="/login" className="text-brand-primary font-semibold hover:underline" data-testid="go-to-login">{t("nav.sign_in")}</Link>
           </p>
         </div>
       </div>

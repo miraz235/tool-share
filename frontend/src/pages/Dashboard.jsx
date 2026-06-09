@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth.jsx";
 import { api, imageUrl } from "@/lib/api";
 import Header from "@/components/Header";
@@ -13,6 +14,7 @@ import { Plus, Calendar, Heart, Package, Trash2, ShieldCheck, ShieldAlert } from
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
   const nav = useNavigate();
   const [myTools, setMyTools] = useState([]);
   const [renterBookings, setRenterBookings] = useState([]);
@@ -81,16 +83,16 @@ export default function Dashboard() {
             <AvatarFallback className="bg-brand-primary text-white font-heading font-bold text-2xl">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h1 className="font-heading text-3xl font-extrabold">Welcome, {user.name.split(" ")[0]}</h1>
+            <h1 className="font-heading text-3xl font-extrabold">{t("dashboard.welcome", { name: user.name.split(" ")[0] })}</h1>
             <p className="text-brand-muted">{user.email}</p>
             <div className="flex gap-4 mt-3 text-sm">
-              <div><span className="font-bold">{myTools.length}</span> <span className="text-brand-muted">listings</span></div>
-              <div><span className="font-bold">{renterBookings.length}</span> <span className="text-brand-muted">rentals</span></div>
-              <div><span className="font-bold">{favorites.length}</span> <span className="text-brand-muted">saved</span></div>
+              <div><span className="font-bold">{myTools.length}</span> <span className="text-brand-muted">{t("dashboard.listings_count")}</span></div>
+              <div><span className="font-bold">{renterBookings.length}</span> <span className="text-brand-muted">{t("dashboard.rentals_count")}</span></div>
+              <div><span className="font-bold">{favorites.length}</span> <span className="text-brand-muted">{t("dashboard.saved_count")}</span></div>
             </div>
           </div>
           <Button asChild className="bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold" data-testid="dashboard-list-btn">
-            <Link to="/list"><Plus className="w-4 h-4 mr-1" /> List a tool</Link>
+            <Link to="/list"><Plus className="w-4 h-4 mr-1" /> {t("dashboard.list_tool")}</Link>
           </Button>
         </div>
 
@@ -101,12 +103,12 @@ export default function Dashboard() {
               <ShieldAlert className="w-6 h-6 text-brand-secondary" />
             </div>
             <div className="flex-1">
-              <div className="font-heading font-bold text-brand-text">Verify your identity</div>
-              <p className="text-sm text-brand-muted">Verified users get more booking requests and access to higher-value tools.</p>
+              <div className="font-heading font-bold text-brand-text">{t("dashboard.verify_title")}</div>
+              <p className="text-sm text-brand-muted">{t("dashboard.verify_subtitle")}</p>
             </div>
             <Button onClick={startVerification} data-testid="start-verification-btn"
               className="bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold">
-              <ShieldCheck className="w-4 h-4 mr-1.5" /> Verify with Stripe
+              <ShieldCheck className="w-4 h-4 mr-1.5" /> {t("dashboard.verify_btn")}
             </Button>
           </div>
         )}
@@ -114,22 +116,22 @@ export default function Dashboard() {
         <Tabs defaultValue="listings" className="w-full">
           <TabsList className="bg-white border border-brand-border rounded-xl p-1 mb-6">
             <TabsTrigger value="listings" data-testid="tab-listings" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
-              <Package className="w-4 h-4 mr-1.5" /> My listings
+              <Package className="w-4 h-4 mr-1.5" /> {t("dashboard.tab_listings")}
             </TabsTrigger>
             <TabsTrigger value="renter" data-testid="tab-renter" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
-              <Calendar className="w-4 h-4 mr-1.5" /> My rentals
+              <Calendar className="w-4 h-4 mr-1.5" /> {t("dashboard.tab_renter")}
             </TabsTrigger>
             <TabsTrigger value="owner" data-testid="tab-owner" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
-              Bookings on my tools
+              {t("dashboard.tab_owner")}
             </TabsTrigger>
             <TabsTrigger value="favorites" data-testid="tab-favorites" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
-              <Heart className="w-4 h-4 mr-1.5" /> Favorites
+              <Heart className="w-4 h-4 mr-1.5" /> {t("dashboard.tab_favorites")}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="listings">
             {myTools.length === 0 ? (
-              <EmptyState icon={Package} title="No listings yet" cta="List your first tool" to="/list" />
+              <EmptyState icon={Package} title={t("dashboard.empty_listings")} cta={t("dashboard.list_first")} to="/list" />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {myTools.map(t => (
@@ -148,7 +150,7 @@ export default function Dashboard() {
 
           <TabsContent value="renter">
             {renterBookings.length === 0 ? (
-              <EmptyState icon={Calendar} title="No rentals yet" cta="Browse tools" to="/browse" />
+              <EmptyState icon={Calendar} title={t("dashboard.empty_renter")} cta={t("dashboard.browse_tools")} to="/browse" />
             ) : (
               <div className="space-y-3">
                 {renterBookings.map(b => <BookingRow key={b.id} booking={b} role="renter" />)}
@@ -158,7 +160,7 @@ export default function Dashboard() {
 
           <TabsContent value="owner">
             {ownerBookings.length === 0 ? (
-              <EmptyState icon={Package} title="No bookings yet" cta="List a tool" to="/list" />
+              <EmptyState icon={Package} title={t("dashboard.empty_owner")} cta={t("dashboard.list_tool")} to="/list" />
             ) : (
               <div className="space-y-3">
                 {ownerBookings.map(b => (
@@ -170,7 +172,7 @@ export default function Dashboard() {
 
           <TabsContent value="favorites">
             {favorites.length === 0 ? (
-              <EmptyState icon={Heart} title="No favorites yet" cta="Discover tools" to="/browse" />
+              <EmptyState icon={Heart} title={t("dashboard.empty_favorites")} cta={t("dashboard.discover_tools")} to="/browse" />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {favorites.map(t => <ToolCard key={t.id} tool={t} />)}

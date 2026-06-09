@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { imageUrl } from "@/lib/api";
 import { Heart, MapPin, Star } from "lucide-react";
 import { useState } from "react";
 
 export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
+  const { t } = useTranslation();
   const [imgError, setImgError] = useState(false);
   const fallback = "https://images.unsplash.com/photo-1563440205176-c565cd7302e4?w=800&q=80&auto=format";
   const img = !imgError && tool.images?.[0] ? imageUrl(tool.images[0]) : fallback;
@@ -34,7 +36,7 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
         )}
         {tool.distance_km !== undefined && (
           <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur rounded-full px-3 py-1 text-xs font-semibold text-brand-text">
-            {tool.distance_km} km away
+            {tool.distance_km} km
           </div>
         )}
       </div>
@@ -56,7 +58,7 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
         </div>
         <div className="flex items-baseline gap-1">
           <span className="font-heading font-extrabold text-xl text-brand-secondary">${tool.daily_price}</span>
-          <span className="text-xs text-brand-muted">/ day</span>
+          <span className="text-xs text-brand-muted">{t("common.per_day")}</span>
         </div>
       </div>
     </Link>

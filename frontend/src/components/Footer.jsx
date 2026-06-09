@@ -1,6 +1,8 @@
+import { useTranslation } from "react-i18next";
 import { Wrench } from "lucide-react";
 
 export default function Footer() {
+  const { t } = useTranslation();
   return (
     <footer className="border-t border-brand-border bg-brand-bg mt-24">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-12 grid md:grid-cols-4 gap-8">
@@ -11,32 +13,29 @@ export default function Footer() {
             </div>
             <span className="font-heading font-extrabold text-xl">ToolShare</span>
           </div>
-          <p className="text-brand-muted text-sm max-w-md">
-            Rent tools from your neighbours. Build, fix, and create — without owning everything.
-            ToolShare is a community marketplace for North America.
-          </p>
+          <p className="text-brand-muted text-sm max-w-md">{t("landing.footer_about")}</p>
         </div>
         <div>
-          <div className="font-heading font-semibold text-brand-text mb-3">Marketplace</div>
+          <div className="font-heading font-semibold text-brand-text mb-3">{t("landing.footer_marketplace")}</div>
           <ul className="space-y-2 text-sm text-brand-muted">
-            <li>Browse tools</li>
-            <li>Categories</li>
-            <li>AI Assistant</li>
+            <li>{t("landing.footer_browse_tools")}</li>
+            <li>{t("landing.footer_categories")}</li>
+            <li>{t("nav.ai_assistant")}</li>
           </ul>
         </div>
         <div>
-          <div className="font-heading font-semibold text-brand-text mb-3">Company</div>
+          <div className="font-heading font-semibold text-brand-text mb-3">{t("landing.footer_company")}</div>
           <ul className="space-y-2 text-sm text-brand-muted">
-            <li>How it works</li>
-            <li>Trust & Safety</li>
-            <li>Help center</li>
+            <li>{t("landing.footer_how")}</li>
+            <li>{t("landing.footer_trust")}</li>
+            <li>{t("landing.footer_help")}</li>
           </ul>
         </div>
       </div>
       <div className="border-t border-brand-border">
         <div className="max-w-7xl mx-auto px-6 md:px-8 py-4 text-xs text-brand-muted flex justify-between">
-          <span>© 2026 ToolShare. Built for neighbours.</span>
-          <span>Made in North America</span>
+          <span>{t("landing.footer_copy")}</span>
+          <span>{t("landing.footer_made")}</span>
         </div>
       </div>
     </footer>

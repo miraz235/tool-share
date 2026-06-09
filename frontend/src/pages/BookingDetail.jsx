@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { api, imageUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth.jsx";
 import Header from "@/components/Header";
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 export default function BookingDetail() {
   const { id } = useParams();
   const [search] = useSearchParams();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const nav = useNavigate();
   const [booking, setBooking] = useState(null);
@@ -52,7 +54,7 @@ export default function BookingDetail() {
       try {
         const r = await api.get(`/payments/status/${sessionId}`);
         if (r.data.payment_status === "paid") {
-          toast.success("Payment successful!");
+          toast.success(t("booking.payment_success"));
           await fetchBooking();
           setPolling(false);
           // strip ?session_id
@@ -85,7 +87,7 @@ export default function BookingDetail() {
     try {
       await api.put(`/bookings/${id}/status`, { status });
       await fetchBooking();
-      toast.success(`Booking ${status}`);
+      toast.success(t(`booking.${status}_toast`));
     } catch (e) { toast.error(e.response?.data?.detail || "Failed"); }
   };
 
@@ -131,7 +133,7 @@ export default function BookingDetail() {
     <div className="min-h-screen bg-brand-bg">
       <Header />
       <div className="max-w-5xl mx-auto px-6 md:px-8 py-12">
-        <Link to="/dashboard" className="text-sm text-brand-muted hover:text-brand-text mb-4 inline-block">← Back to dashboard</Link>
+        <Link to="/dashboard" className="text-sm text-brand-muted hover:text-brand-text mb-4 inline-block">{t("booking.back_dashboard")}</Link>
 
         <div className="grid lg:grid-cols-[1fr_360px] gap-6">
           <div>
@@ -140,14 +142,14 @@ export default function BookingDetail() {
                 <div>
                   <div className="flex gap-2 mb-2">
                     <Badge className={`${statusColor[booking.status]} border-0 capitalize`}>{booking.status}</Badge>
-                    {booking.paid && <Badge className="bg-green-100 text-green-800 border-0">Paid</Badge>}
+                    {booking.paid && <Badge className="bg-green-100 text-green-800 border-0">{t("booking.paid")}</Badge>}
                   </div>
                   <h1 className="font-heading text-3xl font-extrabold" data-testid="booking-title">{booking.tool?.title}</h1>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs uppercase tracking-wider text-brand-muted font-bold">Total</div>
+                  <div className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("common.total")}</div>
                   <div className="font-heading text-2xl font-extrabold text-brand-secondary">${booking.total_price}</div>
-                  {booking.deposit > 0 && <div className="text-xs text-brand-muted">+ ${booking.deposit} deposit</div>}
+                  {booking.deposit > 0 && <div className="text-xs text-brand-muted">+ ${booking.deposit} {t("common.deposit").toLowerCase()}</div>}
                 </div>
               </div>
 
@@ -155,22 +157,22 @@ export default function BookingDetail() {
                 <div className="flex items-center gap-3 p-4 bg-brand-subtle rounded-xl">
                   <Calendar className="w-5 h-5 text-brand-primary" />
                   <div>
-                    <div className="text-xs uppercase tracking-wider text-brand-muted font-bold">Dates</div>
+                    <div className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("booking.dates")}</div>
                     <div className="font-semibold text-sm">{booking.start_date} → {booking.end_date}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-4 bg-brand-subtle rounded-xl">
                   {booking.pickup_method === 'delivery' ? <Truck className="w-5 h-5 text-brand-primary" /> : <Package className="w-5 h-5 text-brand-primary" />}
                   <div>
-                    <div className="text-xs uppercase tracking-wider text-brand-muted font-bold">Method</div>
-                    <div className="font-semibold text-sm capitalize">{booking.pickup_method}</div>
+                    <div className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("booking.method")}</div>
+                    <div className="font-semibold text-sm capitalize">{t(`tool.${booking.pickup_method}`)}</div>
                   </div>
                 </div>
               </div>
 
               {booking.message_to_owner && (
                 <div className="border border-brand-border rounded-xl p-4 mb-4">
-                  <div className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-1">Initial message</div>
+                  <div className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-1">{t("booking.initial_message")}</div>
                   <p className="text-sm text-brand-muted">{booking.message_to_owner}</p>
                 </div>
               )}
@@ -178,23 +180,23 @@ export default function BookingDetail() {
               {isOwner && booking.status === "pending" && (
                 <div className="flex gap-3 pt-4 border-t border-brand-border">
                   <Button onClick={() => updateStatus("approved")} data-testid="approve-btn"
-                    className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">Approve booking</Button>
+                    className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">{t("common.approve")}</Button>
                   <Button onClick={() => updateStatus("declined")} variant="outline" data-testid="decline-btn"
-                    className="rounded-xl">Decline</Button>
+                    className="rounded-xl">{t("common.decline")}</Button>
                 </div>
               )}
               {booking.status === "approved" && booking.paid && (isOwner || isRenter) && (
                 <div className="flex gap-3 pt-4 border-t border-brand-border">
                   <Button onClick={() => updateStatus("completed")} data-testid="complete-btn"
-                    className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">Mark as completed</Button>
+                    className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">{t("common.complete")}</Button>
                   <Button onClick={() => updateStatus("cancelled")} variant="outline" data-testid="cancel-btn"
-                    className="rounded-xl">Cancel</Button>
+                    className="rounded-xl">{t("common.cancel")}</Button>
                 </div>
               )}
               {booking.status === "pending" && isRenter && (
                 <div className="pt-4 border-t border-brand-border">
                   <Button onClick={() => updateStatus("cancelled")} variant="outline" data-testid="cancel-btn"
-                    className="rounded-xl">Cancel request</Button>
+                    className="rounded-xl">{t("booking.cancel_request")}</Button>
                 </div>
               )}
             </div>
@@ -202,30 +204,30 @@ export default function BookingDetail() {
             {/* Payment card */}
             {canPay && (
               <div className="bg-white border border-brand-border rounded-2xl p-6 mb-6">
-                <h3 className="font-heading text-xl font-bold mb-2">Pay to confirm rental</h3>
-                <p className="text-sm text-brand-muted mb-4">Your booking is approved! Pay now to lock in your dates.</p>
+                <h3 className="font-heading text-xl font-bold mb-2">{t("booking.pay_title")}</h3>
+                <p className="text-sm text-brand-muted mb-4">{t("booking.pay_subtitle")}</p>
                 <div className="bg-brand-subtle rounded-xl p-4 mb-4 text-sm space-y-1">
-                  <div className="flex justify-between"><span>Rental</span><span>${booking.total_price}</span></div>
-                  {booking.deposit > 0 && <div className="flex justify-between text-brand-muted"><span>Deposit (refundable)</span><span>${booking.deposit}</span></div>}
-                  <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>Total</span><span>${booking.total_price + booking.deposit}</span></div>
+                  <div className="flex justify-between"><span>{t("booking.rental")}</span><span>${booking.total_price}</span></div>
+                  {booking.deposit > 0 && <div className="flex justify-between text-brand-muted"><span>{t("tool.deposit_label")}</span><span>${booking.deposit}</span></div>}
+                  <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>{t("common.total")}</span><span>${booking.total_price + booking.deposit}</span></div>
                 </div>
                 <Button onClick={pay} disabled={paying || polling}
                   data-testid="pay-btn"
                   className="w-full h-12 bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold">
-                  {paying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Redirecting…</> :
-                    polling ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Verifying payment…</> :
-                    <><CreditCard className="w-4 h-4 mr-2" /> Pay ${booking.total_price + booking.deposit}</>}
+                  {paying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("booking.redirecting")}</> :
+                    polling ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("booking.verifying")}</> :
+                    <><CreditCard className="w-4 h-4 mr-2" /> {t("booking.pay_btn")} ${booking.total_price + booking.deposit}</>}
                 </Button>
-                <p className="text-xs text-brand-muted text-center mt-3">Secure checkout via Stripe</p>
+                <p className="text-xs text-brand-muted text-center mt-3">{t("booking.secure")}</p>
               </div>
             )}
 
             {canReview && (
               <div className="bg-white border border-brand-border rounded-2xl p-6">
-                <h3 className="font-heading text-xl font-bold mb-1">Leave a review</h3>
-                <p className="text-sm text-brand-muted mb-4">Help the community by sharing your experience.</p>
+                <h3 className="font-heading text-xl font-bold mb-1">{t("booking.review_title")}</h3>
+                <p className="text-sm text-brand-muted mb-4">{t("booking.review_subtitle")}</p>
 
-                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">Rating</Label>
+                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("booking.rating")}</Label>
                 <div className="flex gap-1 mt-1 mb-4" data-testid="review-rating">
                   {[1,2,3,4,5].map(i => (
                     <button key={i} onClick={() => setRating(i)} type="button" data-testid={`rating-star-${i}`}>
@@ -234,9 +236,9 @@ export default function BookingDetail() {
                   ))}
                 </div>
 
-                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">Comment</Label>
+                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("booking.comment")}</Label>
                 <Textarea value={comment} onChange={e => setComment(e.target.value)}
-                  placeholder="How was your experience?" className="rounded-xl mt-1 mb-4"
+                  placeholder={t("booking.comment_ph")} className="rounded-xl mt-1 mb-4"
                   data-testid="review-comment" />
 
                 <div className="flex gap-2">
@@ -244,15 +246,15 @@ export default function BookingDetail() {
                     <>
                       <Button onClick={() => submitReview("tool")} disabled={submitting}
                         data-testid="review-tool-btn"
-                        className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">Review tool</Button>
+                        className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">{t("booking.review_tool")}</Button>
                       <Button onClick={() => submitReview("owner")} disabled={submitting} variant="outline"
-                        data-testid="review-owner-btn" className="rounded-xl">Review owner</Button>
+                        data-testid="review-owner-btn" className="rounded-xl">{t("booking.review_owner")}</Button>
                     </>
                   )}
                   {isOwner && (
                     <Button onClick={() => submitReview("renter")} disabled={submitting}
                       data-testid="review-renter-btn"
-                      className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">Review renter</Button>
+                      className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">{t("booking.review_renter")}</Button>
                   )}
                 </div>
               </div>
@@ -264,11 +266,11 @@ export default function BookingDetail() {
             <div className="bg-white border border-brand-border rounded-2xl flex flex-col h-[600px] sticky top-24">
               <div className="border-b border-brand-border p-4 flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-brand-primary" />
-                <h3 className="font-heading font-bold">Messages</h3>
+                <h3 className="font-heading font-bold">{t("booking.messages")}</h3>
               </div>
               <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3" data-testid="booking-messages">
                 {messages.length === 0 ? (
-                  <p className="text-sm text-brand-muted text-center py-8">No messages yet. Say hi 👋</p>
+                  <p className="text-sm text-brand-muted text-center py-8">{t("booking.say_hi")}</p>
                 ) : messages.map(m => {
                   const mine = m.sender_id === user.id;
                   return (
@@ -284,7 +286,7 @@ export default function BookingDetail() {
               <div className="border-t border-brand-border p-3 flex gap-2">
                 <Input value={draft} onChange={e => setDraft(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
-                  placeholder="Type a message…"
+                  placeholder={t("booking.type_message")}
                   data-testid="booking-message-input"
                   className="rounded-xl flex-1" />
                 <Button onClick={sendMessage} disabled={!draft.trim()}

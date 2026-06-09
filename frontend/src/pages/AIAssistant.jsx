@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import Header from "@/components/Header";
 import { api, imageUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -8,15 +9,33 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Loader2, Wrench, ShieldAlert, Clock, Gauge, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
-const EXAMPLES = [
-  "I need to build a fence around my backyard",
-  "I want to cut down some tree branches",
-  "Fix a leaking sink in my bathroom",
-  "Paint my living room walls",
-  "Install new tile in the kitchen",
-];
+const EXAMPLES_BY_LANG = {
+  en: [
+    "I need to build a fence around my backyard",
+    "I want to cut down some tree branches",
+    "Fix a leaking sink in my bathroom",
+    "Paint my living room walls",
+    "Install new tile in the kitchen",
+  ],
+  fr: [
+    "Je dois construire une clôture autour de mon jardin",
+    "Je veux couper quelques branches d'arbre",
+    "Réparer un évier qui fuit dans ma salle de bain",
+    "Peindre les murs de mon salon",
+    "Poser du carrelage dans la cuisine",
+  ],
+  es: [
+    "Necesito construir una cerca alrededor de mi patio",
+    "Quiero cortar algunas ramas de árbol",
+    "Reparar un grifo que gotea en mi baño",
+    "Pintar las paredes de la sala",
+    "Instalar azulejos nuevos en la cocina",
+  ],
+};
 
 export default function AIAssistant() {
+  const { t, i18n } = useTranslation();
+  const EXAMPLES = EXAMPLES_BY_LANG[i18n.language?.split("-")[0]] || EXAMPLES_BY_LANG.en;
   const [task, setTask] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -30,7 +49,7 @@ export default function AIAssistant() {
       const res = await api.post("/ai/recommend", { task });
       setResult(res.data);
     } catch (err) {
-      toast.error("AI service error — try again");
+      toast.error(t("ai.ai_error"));
     } finally {
       setLoading(false);
     }
@@ -49,17 +68,17 @@ export default function AIAssistant() {
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 bg-brand-primary text-white rounded-full px-4 py-1.5 mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            <span className="text-xs font-bold uppercase tracking-wider">AI Tool Assistant</span>
+            <span className="text-xs font-bold uppercase tracking-wider">{t("ai.tag")}</span>
           </div>
-          <h1 className="font-heading text-4xl md:text-5xl font-extrabold mb-3 text-balance">What are you trying to build?</h1>
-          <p className="text-brand-muted text-lg max-w-xl mx-auto">Describe your project — we'll figure out the tools and find them near you.</p>
+          <h1 className="font-heading text-4xl md:text-5xl font-extrabold mb-3 text-balance">{t("ai.title")}</h1>
+          <p className="text-brand-muted text-lg max-w-xl mx-auto">{t("ai.subtitle")}</p>
         </div>
 
         <form onSubmit={submit} className="bg-white border border-brand-border rounded-2xl p-6 shadow-sm mb-6">
           <Textarea
             value={task}
             onChange={(e) => setTask(e.target.value)}
-            placeholder="e.g. I need to build a fence around my backyard, about 30 feet long."
+            placeholder={t("ai.input_ph")}
             className="border-0 focus-visible:ring-0 min-h-[100px] text-base resize-none p-0"
             data-testid="ai-task-input"
           />
@@ -68,14 +87,14 @@ export default function AIAssistant() {
             <Button type="submit" disabled={loading || !task.trim()}
               data-testid="ai-submit-btn"
               className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl font-semibold h-11 px-6">
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Thinking…</> : <>Find tools <ArrowRight className="w-4 h-4 ml-1.5" /></>}
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("ai.thinking")}</> : <>{t("ai.find_tools")} <ArrowRight className="w-4 h-4 ml-1.5" /></>}
             </Button>
           </div>
         </form>
 
         {!result && !loading && (
           <div>
-            <p className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-3">Try one of these</p>
+            <p className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-3">{t("ai.try_one")}</p>
             <div className="flex flex-wrap gap-2">
               {EXAMPLES.map(ex => (
                 <button key={ex} onClick={() => setTask(ex)}
@@ -93,7 +112,7 @@ export default function AIAssistant() {
             <div className="bg-brand-primary text-white rounded-2xl p-6">
               <div className="flex flex-wrap items-start gap-4">
                 <div className="flex-1 min-w-[200px]">
-                  <p className="text-white/80 text-sm uppercase tracking-wider font-bold mb-2">Your project</p>
+                  <p className="text-white/80 text-sm uppercase tracking-wider font-bold mb-2">{t("ai.your_project")}</p>
                   <h2 className="font-heading text-2xl font-bold leading-tight">{result.summary}</h2>
                 </div>
                 <div className="flex gap-2">
@@ -112,9 +131,9 @@ export default function AIAssistant() {
             </div>
 
             <div>
-              <h3 className="font-heading text-xl font-bold mb-4">Tools you'll need</h3>
+              <h3 className="font-heading text-xl font-bold mb-4">{t("ai.tools_needed")}</h3>
               <div className="space-y-4">
-                {result.tools?.map((t, i) => (
+                {result.tools?.map((tool, i) => (
                   <div key={i} className="bg-white border border-brand-border rounded-2xl p-6" data-testid={`ai-tool-${i}`}>
                     <div className="flex items-start gap-4 mb-4">
                       <div className="w-12 h-12 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary">
@@ -122,19 +141,19 @@ export default function AIAssistant() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-heading font-bold text-lg">{t.name}</h4>
-                          {t.essential && <Badge className="bg-brand-secondary/15 text-brand-secondary border-0 text-xs">Essential</Badge>}
-                          <Badge className="bg-brand-subtle text-brand-muted border-0 text-xs capitalize">{t.category?.replace('-', ' ')}</Badge>
+                          <h4 className="font-heading font-bold text-lg">{tool.name}</h4>
+                          {tool.essential && <Badge className="bg-brand-secondary/15 text-brand-secondary border-0 text-xs">{t("ai.essential")}</Badge>}
+                          <Badge className="bg-brand-subtle text-brand-muted border-0 text-xs capitalize">{t(`categories.${tool.category}`, tool.category?.replace('-', ' '))}</Badge>
                         </div>
-                        <p className="text-sm text-brand-muted mt-1">{t.why}</p>
+                        <p className="text-sm text-brand-muted mt-1">{tool.why}</p>
                       </div>
                     </div>
 
-                    {t.available_listings?.length > 0 ? (
+                    {tool.available_listings?.length > 0 ? (
                       <div className="border-t border-brand-border pt-4">
-                        <p className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-3">Available near you</p>
+                        <p className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-3">{t("ai.available_near")}</p>
                         <div className="grid sm:grid-cols-3 gap-3">
-                          {t.available_listings.slice(0, 3).map(l => (
+                          {tool.available_listings.slice(0, 3).map(l => (
                             <Link key={l.id} to={`/tools/${l.id}`}
                               className="flex items-center gap-3 p-3 bg-brand-subtle rounded-xl hover:bg-white hover:border-brand-primary border border-transparent transition-all">
                               <div className="w-12 h-12 rounded-lg bg-white overflow-hidden shrink-0">
@@ -142,7 +161,7 @@ export default function AIAssistant() {
                               </div>
                               <div className="min-w-0">
                                 <div className="font-semibold text-sm truncate">{l.title}</div>
-                                <div className="text-xs text-brand-muted">${l.daily_price}/day · {l.location?.city}</div>
+                                <div className="text-xs text-brand-muted">${l.daily_price}/{t("common.day")} · {l.location?.city}</div>
                               </div>
                             </Link>
                           ))}
@@ -150,7 +169,7 @@ export default function AIAssistant() {
                       </div>
                     ) : (
                       <div className="border-t border-brand-border pt-4 text-sm text-brand-muted">
-                        No nearby listings yet — try the <Link to={`/browse?category=${t.category}`} className="text-brand-primary font-semibold">{t.category?.replace('-', ' ')}</Link> category.
+                        {t("ai.no_nearby")} <Link to={`/browse?category=${tool.category}`} className="text-brand-primary font-semibold">{t(`categories.${tool.category}`, tool.category?.replace('-', ' '))}</Link> {t("ai.category")}.
                       </div>
                     )}
                   </div>
@@ -162,7 +181,7 @@ export default function AIAssistant() {
               <div className="bg-white border border-brand-border rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-3">
                   <ShieldAlert className="w-4 h-4 text-brand-secondary" />
-                  <h3 className="font-heading font-bold">Safety tips</h3>
+                  <h3 className="font-heading font-bold">{t("ai.safety_tips")}</h3>
                 </div>
                 <ul className="space-y-1.5 text-sm text-brand-muted list-disc list-inside">
                   {result.safety_tips.map((tip, i) => <li key={i}>{tip}</li>)}

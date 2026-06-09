@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth.jsx";
 import { toast } from "sonner";
 import Header from "@/components/Header";
@@ -19,6 +20,7 @@ const GoogleIcon = (props) => (
 
 export default function Login() {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,10 +31,10 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
-      toast.success("Welcome back!");
+      toast.success(t("auth.welcome_toast"));
       nav("/dashboard");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Login failed");
+      toast.error(err.response?.data?.detail || t("auth.login_failed"));
     } finally {
       setSubmitting(false);
     }
@@ -52,41 +54,41 @@ export default function Login() {
           <div className="inline-flex w-14 h-14 rounded-2xl bg-brand-primary items-center justify-center mb-4">
             <Wrench className="w-7 h-7 text-white" strokeWidth={2.5} />
           </div>
-          <h1 className="font-heading text-3xl font-extrabold">Welcome back</h1>
-          <p className="text-brand-muted mt-1">Sign in to continue to ToolShare</p>
+          <h1 className="font-heading text-3xl font-extrabold">{t("auth.welcome_back")}</h1>
+          <p className="text-brand-muted mt-1">{t("auth.signin_sub")}</p>
         </div>
 
         <div className="bg-white border border-brand-border rounded-2xl p-8 shadow-sm">
           <Button onClick={googleSignIn} variant="outline" data-testid="google-signin-btn"
             className="w-full h-12 rounded-xl border-brand-border font-semibold">
-            <GoogleIcon className="mr-2" /> Continue with Google
+            <GoogleIcon className="mr-2" /> {t("auth.continue_google")}
           </Button>
 
           <div className="flex items-center my-6">
             <div className="flex-1 h-px bg-brand-border" />
-            <span className="px-3 text-xs uppercase tracking-wider text-brand-muted font-bold">or</span>
+            <span className="px-3 text-xs uppercase tracking-wider text-brand-muted font-bold">{t("auth.or")}</span>
             <div className="flex-1 h-px bg-brand-border" />
           </div>
 
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <Label>Email</Label>
+              <Label>{t("auth.email")}</Label>
               <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
                 required data-testid="login-email" className="rounded-xl mt-1 h-11"/>
             </div>
             <div>
-              <Label>Password</Label>
+              <Label>{t("auth.password")}</Label>
               <Input type="password" value={password} onChange={e => setPassword(e.target.value)}
                 required data-testid="login-password" className="rounded-xl mt-1 h-11"/>
             </div>
             <Button type="submit" disabled={submitting} data-testid="login-submit"
               className="w-full h-11 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl font-semibold">
-              {submitting ? "Signing in…" : "Sign in"}
+              {submitting ? t("auth.signing_in") : t("nav.sign_in")}
             </Button>
           </form>
 
           <p className="text-sm text-center text-brand-muted mt-6">
-            New to ToolShare? <Link to="/register" className="text-brand-primary font-semibold hover:underline" data-testid="go-to-register">Create an account</Link>
+            {t("auth.new_here")} <Link to="/register" className="text-brand-primary font-semibold hover:underline" data-testid="go-to-register">{t("auth.create_link")}</Link>
           </p>
         </div>
       </div>
