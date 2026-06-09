@@ -207,5 +207,14 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ `tsc --noEmit` reports 0 errors. (fork-ts-checker may surface stale contextual-typing warnings during dev hot-reload; `TSC_COMPILE_ON_ERROR=true` in `.env` keeps the dev server unblocked.)
 - ✅ Verified live: keyboard-pan → 2 new API calls with new lat/lng/radius_km → hint visible → recenter click hides hint and restores Toronto-centered tool list.
 
+## 12i. Currency switcher + full TS coverage (2026-06-09)
+- ✅ **6-currency support** (USD/CAD/EUR/GBP/MXN/AUD) via typed `CurrencyProvider` in `lib/currency.tsx`
+- ✅ **Geo-IP defaulting** on first visit via `ipapi.co/json/` → `country_code → currency`; persisted in `localStorage` `toolshare_currency`. Falls back to USD silently if fetch blocked.
+- ✅ Switcher dropdown (`data-testid="currency-switcher"`) in Header next to LanguageSwitcher; spinner during detection; per-currency items `data-testid="currency-XXX"`.
+- ✅ `useCurrency().format(price)` used by ToolCard for rental + sale prices; backend `/api/fx/rates` extended to all 6 currencies (USD-base, cached 1h).
+- ✅ **Full TS coverage**: every page (`Landing`, `ListTool`, `Login`, `Register`, `AIAssistant`, `Messages`) and component (`Header`, `Footer`, `ToolCard`, `LanguageSwitcher`, `CurrencySwitcher`) now `.tsx`.
+- ✅ Catch-all `*` route → `NotFound` keeps Header (and currency switcher) mounted on unknown paths.
+- ✅ Tests: iter11 — backend FX rates 5/5; frontend currency switching, persistence, EUR conversion ($12 → 11 €), TS regression across all routes, map-search regression all pass.
+
 ## 13. Prioritized Backlog
 

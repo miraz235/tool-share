@@ -18,6 +18,25 @@ import AIAssistant from "@/pages/AIAssistant";
 import BookingDetail from "@/pages/BookingDetail";
 import Messages from "@/pages/Messages";
 import Admin from "@/pages/Admin";
+import Header from "@/components/Header";
+
+function NotFound() {
+  return (
+    <div className="min-h-screen bg-brand-bg flex flex-col">
+      <Header />
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center" data-testid="not-found-page">
+        <div className="font-heading text-6xl font-extrabold text-brand-primary">404</div>
+        <h1 className="font-heading text-2xl font-bold mt-3 mb-2">Page not found</h1>
+        <p className="text-brand-muted mb-6 max-w-md">
+          The page you're looking for doesn't exist or has moved. Try browsing our tools instead.
+        </p>
+        <a href="/browse" className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl px-5 py-2.5 font-semibold transition-colors">
+          Browse tools
+        </a>
+      </div>
+    </div>
+  );
+}
 
 function AuthCallback() {
   const navigate = useNavigate();
@@ -77,6 +96,7 @@ function AppRouter() {
       <Route path="/bookings/:id" element={<BookingDetail />} />
       <Route path="/messages" element={<Messages />} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
