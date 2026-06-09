@@ -94,6 +94,7 @@
     "no_tools_subtitle": "Essayez d'élargir vos filtres ou de parcourir toutes les catégories.",
     "max_price": "Max ${{value}}/jour",
     "radius": "{{value}} km",
+    "radius_hint": "Autorisez l'accès à la position pour filtrer par distance",
     "use_my_location": "Utiliser ma position",
     "view_split": "Mixte",
     "view_grid": "Grille",

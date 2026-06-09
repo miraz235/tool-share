@@ -141,17 +141,21 @@ export default function Browse() {
             />
           </div>
 
-          {/* Radius slider (only meaningful when geolocation is set) */}
-          <div className="flex items-center gap-2 px-2 border-l border-brand-border pl-3">
+          {/* Radius slider (auto-prompts geolocation when interacted with) */}
+          <div className="flex items-center gap-2 px-2 border-l border-brand-border pl-3"
+            onMouseEnter={() => { if (!userLocation && !geoLoading) requestGeo(); }}
+            data-testid="browse-radius-wrap">
             <Compass className={`w-4 h-4 ${userLocation ? 'text-brand-primary' : 'text-brand-muted'}`} />
-            <span className="text-sm font-medium whitespace-nowrap min-w-[80px]">{t("browse.radius", { value: radiusUI })}</span>
+            <span className="text-sm font-medium whitespace-nowrap min-w-[80px]"
+              title={!userLocation ? t("browse.radius_hint") : ""}>
+              {t("browse.radius", { value: radiusUI })}
+            </span>
             <Slider
               value={[radiusUI]}
-              onValueChange={(v) => setRadiusUI(v[0])}
-              onValueCommit={(v) => updateParam("radius_km", v[0] === DEFAULT_RADIUS && !userLocation ? "" : String(v[0]))}
+              onValueChange={(v) => { setRadiusUI(v[0]); if (!userLocation && !geoLoading) requestGeo(); }}
+              onValueCommit={(v) => updateParam("radius_km", String(v[0]))}
               max={200} min={5} step={5}
               className="w-32"
-              disabled={!userLocation}
               data-testid="browse-radius-slider"
             />
             {!userLocation && (

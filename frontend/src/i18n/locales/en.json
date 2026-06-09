@@ -94,6 +94,7 @@
     "no_tools_subtitle": "Try widening your filters or browsing all categories.",
     "max_price": "Max ${{value}}/day",
     "radius": "{{value}} km",
+    "radius_hint": "Allow location access to filter by distance",
     "use_my_location": "Use my location",
     "view_split": "Split",
     "view_grid": "Grid",

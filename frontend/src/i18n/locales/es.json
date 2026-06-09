@@ -94,6 +94,7 @@
     "no_tools_subtitle": "Prueba ampliar los filtros o explorar todas las categorías.",
     "max_price": "Máx ${{value}}/día",
     "radius": "{{value}} km",
+    "radius_hint": "Permite el acceso a la ubicación para filtrar por distancia",
     "use_my_location": "Usar mi ubicación",
     "view_split": "Mixta",
     "view_grid": "Lista",
