@@ -2,7 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef } from "react";
 import { Toaster } from "sonner";
-import { AuthProvider } from "@/lib/auth.jsx";
+import { AuthProvider } from "@/lib/auth";
 import { api, setToken } from "@/lib/api";
 
 import Landing from "@/pages/Landing";
@@ -20,7 +20,7 @@ import Admin from "@/pages/Admin";
 
 function AuthCallback() {
   const navigate = useNavigate();
-  const hasProcessed = useRef(false);
+  const hasProcessed = useRef<boolean>(false);
 
   useEffect(() => {
     if (hasProcessed.current) return;
@@ -36,13 +36,12 @@ function AuthCallback() {
 
     (async () => {
       try {
-        const res = await api.post("/auth/google/session", { session_id: sessionId });
+        const res = await api.post<{ token: string }>("/auth/google/session", { session_id: sessionId });
         if (res.data.token) setToken(res.data.token);
-        // Clean URL and go to dashboard
         window.history.replaceState({}, "", "/dashboard");
         navigate("/dashboard", { replace: true });
         window.location.reload();
-      } catch (e) {
+      } catch {
         navigate("/login", { replace: true });
       }
     })();
@@ -81,7 +80,7 @@ function AppRouter() {
   );
 }
 
-function App() {
+export default function App() {
   return (
     <div className="App">
       <BrowserRouter>
@@ -93,5 +92,3 @@ function App() {
     </div>
   );
 }
-
-export default App;

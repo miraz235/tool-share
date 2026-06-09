@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/lib/auth.jsx";
+import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";

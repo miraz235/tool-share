@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/lib/auth.jsx";
+import { useAuth } from "@/lib/auth";
 import { api, imageUrl } from "@/lib/api";
 import Header from "@/components/Header";
 import { Input } from "@/components/ui/input";

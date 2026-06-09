@@ -4,6 +4,9 @@ import { imageUrl } from "@/lib/api";
 import { Heart, MapPin, Star, Sparkles, Tag } from "lucide-react";
 import { useState } from "react";
 
+/**
+ * @param {{ tool: any; onToggleFavorite?: (id: string) => void; isFavorite?: boolean }} props
+ */
 export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
   const { t } = useTranslation();
   const [imgError, setImgError] = useState(false);

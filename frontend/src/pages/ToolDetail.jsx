@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api, imageUrl } from "@/lib/api";
-import { useAuth } from "@/lib/auth.jsx";
+import { useAuth } from "@/lib/auth";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import MapView from "@/components/MapView";

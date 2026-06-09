@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/lib/auth.jsx";
+import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
