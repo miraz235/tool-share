@@ -104,7 +104,9 @@
     "view_map": "Carte",
     "type_all": "Tout",
     "type_rent": "Louer",
-    "type_sell": "Acheter"
+    "type_sell": "Acheter",
+    "no_tools_in_area": "Aucun outil dans cette zone",
+    "no_tools_in_area_hint": "Essayez de déplacer la carte ou d'élargir votre rayon."
   },
   "tool": {
     "about": "À propos de cet outil",

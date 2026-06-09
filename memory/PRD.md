@@ -198,5 +198,14 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ Other pages remain `.jsx` and compile via `allowJs` — gradual migration path preserved
 - ✅ Tests: iter8 — frontend 100% (all 5 public routes + auth + 4 dashboard tabs + Browse filters/view modes + ToolDetail buy + Admin 5 tabs + EN/FR/ES translations); backend 19/19 (iter7 + iter8 regression)
 
+## 12h. Map-centered search + TS hot-page migration (2026-06-09)
+- ✅ **Map-driven search**: Browse map auto-recenters search when user pans/zooms (Leaflet `dragstart`/`zoomstart` detection + 350ms debounce); programmatic moves swallowed via `programmaticMoveRef`. Viewport-derived radius applied only when user hasn't explicitly set the slider (respects user filter).
+- ✅ Hint pill (`data-testid="map-search-hint"`) shows "Showing tools in this map area · Use my location" once user pans; recenter button (`data-testid="map-recenter-btn"`) restores device geolocation as search center.
+- ✅ Empty-state in map view shown as overlay (`data-testid="browse-empty-overlay"`) keeping the map + hint mounted; split view shows "No tools in this area" in the list pane with a recenter CTA. Loading state in map views uses a small pill instead of unmounting the map.
+- ✅ i18n: `browse.no_tools_in_area`, `browse.no_tools_in_area_hint` in EN/FR/ES.
+- ✅ **TS migration P2**: `Profile`, `BookingDetail`, `Admin`, `Dashboard`, `ToolDetail`, `MapView` all converted to `.tsx`. Shadcn primitives also typed: `avatar`, `badge`, `button`, `calendar`, `input`, `label`, `radio-group`, `select`, `slider`, `switch`, `tabs`, `textarea`.
+- ✅ `tsc --noEmit` reports 0 errors. (fork-ts-checker may surface stale contextual-typing warnings during dev hot-reload; `TSC_COMPILE_ON_ERROR=true` in `.env` keeps the dev server unblocked.)
+- ✅ Verified live: keyboard-pan → 2 new API calls with new lat/lng/radius_km → hint visible → recenter click hides hint and restores Toronto-centered tool list.
+
 ## 13. Prioritized Backlog
 

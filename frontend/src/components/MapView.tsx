@@ -28,47 +28,67 @@ function makePinIcon(price: number, active = false) {
   });
 }
 
-function FitOnce({ tools, center, hasUserMovedRef }: { tools: MapTool[]; center: [number, number]; hasUserMovedRef: React.MutableRefObject<boolean> }) {
+function FitOnce({ tools, center, hasUserMovedRef, programmaticMoveRef }: { tools: MapTool[]; center: [number, number]; hasUserMovedRef: React.MutableRefObject<boolean>; programmaticMoveRef: React.MutableRefObject<boolean> }) {
   const map = useMap();
   const didFitRef = useRef<boolean>(false);
   useEffect(() => {
     if (didFitRef.current || hasUserMovedRef.current) return;
-    if (!tools || tools.length === 0) {
-      if (center) {
-        map.setView(center, 11);
-        didFitRef.current = true;
+    const doFit = (): boolean => {
+      if (!tools || tools.length === 0) {
+        if (center) {
+          // Mark this as a programmatic move so MoveListener ignores it
+          programmaticMoveRef.current = true;
+          map.setView(center, 12);
+          didFitRef.current = true;
+          return true;
+        }
+        return false;
       }
-      return;
-    }
-    const bounds = L.latLngBounds(
-      tools
-        .map((tl) => [tl.location?.lat, tl.location?.lng] as [number | undefined, number | undefined])
-        .filter(([lat, lng]) => !!lat && !!lng) as [number, number][]
-    );
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
-      didFitRef.current = true;
-    }
-  }, [tools, map, center, hasUserMovedRef]);
+      const bounds = L.latLngBounds(
+        tools
+          .map((tl) => [tl.location?.lat, tl.location?.lng] as [number | undefined, number | undefined])
+          .filter(([lat, lng]) => !!lat && !!lng) as [number, number][]
+      );
+      if (bounds.isValid()) {
+        programmaticMoveRef.current = true;
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+        didFitRef.current = true;
+        return true;
+      }
+      return false;
+    };
+    doFit();
+  }, [tools, map, center, hasUserMovedRef, programmaticMoveRef]);
   return null;
 }
 
-function MoveListener({ onCenterChange, hasUserMovedRef }: { onCenterChange?: MapViewProps["onCenterChange"]; hasUserMovedRef: React.MutableRefObject<boolean> }) {
+function MoveListener({ onCenterChange, hasUserMovedRef, programmaticMoveRef }: { onCenterChange?: MapViewProps["onCenterChange"]; hasUserMovedRef: React.MutableRefObject<boolean>; programmaticMoveRef: React.MutableRefObject<boolean> }) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useMapEvents({
-    movestart: () => { hasUserMovedRef.current = true; },
+    // Leaflet emits `dragstart` only on real user drags. movestart fires on programmatic
+    // setView/fitBounds too — so we listen to dragstart + zoomstart for "real" interactions.
+    dragstart: () => { hasUserMovedRef.current = true; },
+    zoomstart: (e: any) => {
+      // Programmatic zoom (fitBounds) also fires zoomstart, so check originalEvent
+      if (e?.originalEvent) hasUserMovedRef.current = true;
+    },
     moveend: (e) => {
       if (!onCenterChange) return;
-      // Debounce so rapid drags only fire once
+      if (programmaticMoveRef.current) {
+        // This moveend was fired by our own setView/fitBounds — swallow it
+        programmaticMoveRef.current = false;
+        return;
+      }
+      // Capture coords/radius now (before any pending re-render destroys the map ref)
+      const map = e.target;
+      const c = map.getCenter();
+      const bounds = map.getBounds();
+      const ne = bounds.getNorthEast();
+      const radiusMeters = map.distance([c.lat, c.lng], [ne.lat, ne.lng]);
+      const radiusKm = Math.max(5, Math.min(200, Math.round(radiusMeters / 1000)));
+      // Debounce so rapid drags only fire one search request
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        const map = e.target;
-        const c = map.getCenter();
-        // Compute radius (km) from center to NE corner of current viewport
-        const bounds = map.getBounds();
-        const ne = bounds.getNorthEast();
-        const radiusMeters = map.distance([c.lat, c.lng], [ne.lat, ne.lng]);
-        const radiusKm = Math.max(5, Math.min(200, Math.round(radiusMeters / 1000)));
         onCenterChange(c.lat, c.lng, radiusKm);
       }, 350);
     },
@@ -82,11 +102,12 @@ export default function MapView({ tools = [], center, onSelect, selectedId, appr
       ? [tools[0].location.lat, tools[0].location.lng]
       : [43.6532, -79.3832]);
   const hasUserMovedRef = useRef<boolean>(false);
+  const programmaticMoveRef = useRef<boolean>(false);
 
   return (
     <MapContainer
       center={initialCenter}
-      zoom={11}
+      zoom={12}
       scrollWheelZoom
       style={{ height: "100%", width: "100%" }}
       data-testid="map-view"
@@ -95,8 +116,8 @@ export default function MapView({ tools = [], center, onSelect, selectedId, appr
         attribution='&copy; OpenStreetMap'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <FitOnce tools={tools} center={initialCenter} hasUserMovedRef={hasUserMovedRef} />
-      <MoveListener onCenterChange={onCenterChange} hasUserMovedRef={hasUserMovedRef} />
+      <FitOnce tools={tools} center={initialCenter} hasUserMovedRef={hasUserMovedRef} programmaticMoveRef={programmaticMoveRef} />
+      <MoveListener onCenterChange={onCenterChange} hasUserMovedRef={hasUserMovedRef} programmaticMoveRef={programmaticMoveRef} />
       {tools.map((tl) => {
         const lat = tl.location?.lat;
         const lng = tl.location?.lng;

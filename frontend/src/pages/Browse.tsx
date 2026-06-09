@@ -160,14 +160,18 @@ export default function Browse() {
     );
   }, []);
 
-  // When the user pans/zooms the map, recenter the search and derive radius from viewport.
+  // When the user pans/zooms the map, recenter the search.
+  // Keep the user's explicit radius_km slider value as source of truth — we ONLY
+  // adopt the map-derived radius when the user hasn't yet touched the slider
+  // (i.e. there is no `radius_km` in the URL).
   const handleMapMove = (lat: number, lng: number, derivedRadiusKm: number) => {
     setSearchCenter({ lat, lng, source: "map" });
-    // Sync radius slider UI; commit to URL via existing slider param to keep filter state coherent
-    setRadiusUI(derivedRadiusKm);
-    const p = new URLSearchParams(params);
-    p.set("radius_km", String(derivedRadiusKm));
-    setParams(p, { replace: true });
+    if (!params.has("radius_km")) {
+      setRadiusUI(derivedRadiusKm);
+      const p = new URLSearchParams(params);
+      p.set("radius_km", String(derivedRadiusKm));
+      setParams(p, { replace: true });
+    }
   };
 
   const recenterToMyLocation = () => {
@@ -359,28 +363,30 @@ export default function Browse() {
       </div>
 
       <div className="max-w-[1600px] mx-auto">
-        {loading ? (
+        {loading && view === "grid" ? (
           <div className="p-16 text-center text-brand-muted" data-testid="browse-loading">{t("common.loading")}</div>
-        ) : tools.length === 0 ? (
-          <div className="p-16 text-center" data-testid="browse-empty">
-            <div className="font-heading text-2xl font-bold mb-2">{t("browse.no_tools_found")}</div>
-            <p className="text-brand-muted mb-6">{t("browse.no_tools_subtitle")}</p>
-            <Button onClick={() => setParams(new URLSearchParams())}
-              className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">
-              {t("common.clear_filters")}
-            </Button>
-          </div>
         ) : view === "grid" ? (
-          <div className="px-6 py-8">
-            <div className="mb-4 text-sm text-brand-muted">
-              {tools.length === 1
-                ? t("browse.tools_available_one", { count: tools.length })
-                : t("browse.tools_available_other", { count: tools.length })}
+          tools.length === 0 ? (
+            <div className="p-16 text-center" data-testid="browse-empty">
+              <div className="font-heading text-2xl font-bold mb-2">{t("browse.no_tools_found")}</div>
+              <p className="text-brand-muted mb-6">{t("browse.no_tools_subtitle")}</p>
+              <Button onClick={() => setParams(new URLSearchParams())}
+                className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">
+                {t("common.clear_filters")}
+              </Button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {tools.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
+          ) : (
+            <div className="px-6 py-8">
+              <div className="mb-4 text-sm text-brand-muted">
+                {tools.length === 1
+                  ? t("browse.tools_available_one", { count: tools.length })
+                  : t("browse.tools_available_other", { count: tools.length })}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {tools.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
+              </div>
             </div>
-          </div>
+          )
         ) : view === "map" ? (
           <div className="h-[calc(100vh-160px)] p-4 relative">
             <MapView
@@ -391,26 +397,59 @@ export default function Browse() {
               onCenterChange={handleMapMove}
             />
             <MapSearchHint searchCenter={searchCenter} onRecenter={recenterToMyLocation} userLocationAvailable={!!userLocation} />
+            {loading && (
+              <div className="absolute top-7 right-7 z-[400] bg-white/95 backdrop-blur shadow-md rounded-full border border-brand-border px-3 py-1.5 flex items-center gap-2 text-xs font-semibold" data-testid="map-loading-pill">
+                <Loader2 className="w-3 h-3 animate-spin" /> {t("common.loading")}
+              </div>
+            )}
+            {!loading && tools.length === 0 && (
+              <div
+                className="absolute bottom-7 left-1/2 -translate-x-1/2 z-[400] bg-white shadow-lg rounded-2xl border border-brand-border px-5 py-3 text-sm font-medium pointer-events-auto"
+                data-testid="browse-empty-overlay"
+              >
+                {t("browse.no_tools_in_area")}
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid lg:grid-cols-[1fr_1.4fr] h-[calc(100vh-160px)]">
             <div className="overflow-y-auto px-6 py-6 border-r border-brand-border">
-              <div className="mb-4 text-sm text-brand-muted">
-                {tools.length === 1
-                  ? t("browse.tools_available_one", { count: tools.length })
-                  : t("browse.tools_available_other", { count: tools.length })}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                {tools.map((tool) => (
-                  <div
-                    key={tool.id}
-                    onMouseEnter={() => setSelectedId(tool.id)}
-                    onMouseLeave={() => setSelectedId(null)}
+              {loading ? (
+                <div className="p-8 text-center text-brand-muted">{t("common.loading")}</div>
+              ) : tools.length === 0 ? (
+                <div className="p-8 text-center" data-testid="browse-empty-list">
+                  <div className="font-heading text-lg font-bold mb-1">{t("browse.no_tools_in_area")}</div>
+                  <p className="text-sm text-brand-muted mb-4">{t("browse.no_tools_in_area_hint")}</p>
+                  <Button
+                    onClick={recenterToMyLocation}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    data-testid="browse-empty-recenter-btn"
                   >
-                    <ToolCard tool={tool} />
+                    {t("browse.use_my_location")}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 text-sm text-brand-muted">
+                    {tools.length === 1
+                      ? t("browse.tools_available_one", { count: tools.length })
+                      : t("browse.tools_available_other", { count: tools.length })}
                   </div>
-                ))}
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {tools.map((tool) => (
+                      <div
+                        key={tool.id}
+                        onMouseEnter={() => setSelectedId(tool.id)}
+                        onMouseLeave={() => setSelectedId(null)}
+                      >
+                        <ToolCard tool={tool} />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             <div className="hidden lg:block p-4 relative">
               <MapView
@@ -421,6 +460,11 @@ export default function Browse() {
                 onCenterChange={handleMapMove}
               />
               <MapSearchHint searchCenter={searchCenter} onRecenter={recenterToMyLocation} userLocationAvailable={!!userLocation} />
+              {loading && (
+                <div className="absolute top-7 right-7 z-[400] bg-white/95 backdrop-blur shadow-md rounded-full border border-brand-border px-3 py-1.5 flex items-center gap-2 text-xs font-semibold">
+                  <Loader2 className="w-3 h-3 animate-spin" /> {t("common.loading")}
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -104,7 +104,9 @@
     "view_map": "Mapa",
     "type_all": "Todo",
     "type_rent": "Alquilar",
-    "type_sell": "Comprar"
+    "type_sell": "Comprar",
+    "no_tools_in_area": "Sin herramientas en esta zona",
+    "no_tools_in_area_hint": "Mueve el mapa o amplía tu radio de búsqueda."
   },
   "tool": {
     "about": "Acerca de esta herramienta",
