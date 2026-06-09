@@ -1,15 +1,21 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { imageUrl } from "@/lib/api";
+import { useCurrency } from "@/lib/currency";
 import { Heart, MapPin, Star, Sparkles, Tag } from "lucide-react";
 import { useState } from "react";
+import type { Tool } from "@/types";
 
-/**
- * @param {{ tool: any; onToggleFavorite?: (id: string) => void; isFavorite?: boolean }} props
- */
-export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
+interface ToolCardProps {
+  tool: Tool;
+  onToggleFavorite?: (id: string) => void;
+  isFavorite?: boolean;
+}
+
+export default function ToolCard({ tool, onToggleFavorite, isFavorite }: ToolCardProps) {
   const { t } = useTranslation();
-  const [imgError, setImgError] = useState(false);
+  const { format } = useCurrency();
+  const [imgError, setImgError] = useState<boolean>(false);
   const fallback = "https://images.unsplash.com/photo-1563440205176-c565cd7302e4?w=800&q=80&auto=format";
   const img = !imgError && tool.images?.[0] ? imageUrl(tool.images[0]) : fallback;
   const forSale = tool.listing_type === "sell" || tool.listing_type === "both";
@@ -74,11 +80,11 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }) {
         </div>
         <div className="flex items-baseline justify-between gap-2">
           <div className="flex items-baseline gap-1">
-            <span className="font-heading font-extrabold text-xl text-brand-secondary">${tool.daily_price}</span>
+            <span className="font-heading font-extrabold text-xl text-brand-secondary" data-testid={`tool-price-${tool.id}`}>{format(tool.daily_price)}</span>
             <span className="text-xs text-brand-muted">{t("common.per_day")}</span>
           </div>
           {forSale && tool.sale_price > 0 && (
-            <div className="text-xs font-semibold text-brand-primary">${tool.sale_price} {t("common.buy")}</div>
+            <div className="text-xs font-semibold text-brand-primary">{format(tool.sale_price)} {t("common.buy")}</div>
           )}
         </div>
       </div>

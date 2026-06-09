@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 11 testing: Currency switcher (6 currencies) + TS migration regression + map search regression. Backend FX rates endpoint returns USD-based rates for all 6 supported currencies. Frontend currency switcher dropdown, EUR/USD switching, localStorage persistence, and price re-formatting on Browse/ToolDetail all work. All major pages render without runtime JS errors. Map-driven search regression PASSES: pan triggers API call with new lat/lng/radius_km and hint pill appears. Language switcher coexists with currency switcher.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "/bookings list route",
+        "issue": "Navigating to /bookings (no id) renders empty HTML — no React route is defined for the bare /bookings list (App.tsx only has /bookings/:id). The request listed /bookings as a page to verify post-login; either the route is intentionally missing (bookings are surfaced via /dashboard) or it's a missing-route regression. No header/switcher renders because no React route matches and the catch-all is also missing.",
+        "affected_selectors": ["/bookings"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration11_currency.py",
+    "/app/test_reports/pytest/iteration11.xml"
+  ],
+  "action_items": [
+    "Either add a /bookings list route in App.tsx OR remove /bookings from the verification list (bookings are currently only surfaced via /dashboard and /bookings/:id). Recommend adding a catch-all NotFound route so unknown paths still mount the Header (so the currency switcher remains visible).",
+    "(Informational) Geo-IP detection via ipapi.co is blocked by CORS in this sandbox — fallback to USD works as designed. Not a code bug, but consider proxying through the backend if you want reliable auto-detection in restrictive environments."
+  ],
+  "critical_code_review_comments": [
+    "lib/currency.tsx: detection useEffect has empty dep array but re-reads localStorage — fine. format() correctly falls back when Intl throws.",
+    "Currency context returns a safe fallback when provider missing — good defensive code.",
+    "CurrencySwitcher correctly shows Loader2 spinner during detection (detecting=true).",
+    "Backend /api/fx/rates returns base USD with all 6 SUPPORTED_CURRENCIES (verified live).",
+    "Routing: missing catch-all (404) route in App.tsx — unmatched paths render an empty page without the Header (observed at /bookings)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration11_currency.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "95%"
+  },
+  "test_credentials": "sara@toolshare.demo / demo1234 (used and confirmed working)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Currency switcher works end-to-end. EUR conversion correct ($12 USD → 11 €, $22 → 20 €, etc. at rate 0.92). localStorage key 'toolshare_currency' persists. Geo-IP ipapi.co is blocked by CORS in the sandbox — falls back to USD silently (no console crash, only the expected CORS fetch error). Map pan triggers /api/tools?lat=…&lng=…&radius_km=… correctly (hint pill 'Showing tools in this map area' appears with data-testid='map-search-hint'). Recenter button only renders when userLocationAvailable=true (i.e., browser geolocation granted). The /bookings bare route is undefined in the SPA — only /bookings/:id exists. Backend fx tests live in /app/backend/tests/test_iteration11_currency.py (5 passed).",
+  "rca of the issue": "/bookings empty page: App.tsx has Route path='/bookings/:id' but no path='/bookings' and no catch-all/404 route. So React Router doesn't render anything (no Header, no fallback page) for the /bookings URL — hence body shows only the index.html boilerplate. Fix: add either <Route path='/bookings' element={<BookingsList/>} /> or a <Route path='*' element={<NotFound/>} /> so Header still mounts."
+}

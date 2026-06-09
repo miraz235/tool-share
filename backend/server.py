@@ -748,8 +748,8 @@ INSURANCE_TIERS = {
 # -----------------------------------------------------------------------------
 # FX rates (USD base) — cached for 1 hour. Falls back to a sensible default.
 # -----------------------------------------------------------------------------
-SUPPORTED_CURRENCIES = ["USD", "CAD"]
-_DEFAULT_RATES = {"USD": 1.0, "CAD": 1.37}
+SUPPORTED_CURRENCIES = ["USD", "CAD", "EUR", "GBP", "MXN", "AUD"]
+_DEFAULT_RATES = {"USD": 1.0, "CAD": 1.37, "EUR": 0.92, "GBP": 0.79, "MXN": 17.4, "AUD": 1.52}
 
 
 @api.get("/fx/rates")

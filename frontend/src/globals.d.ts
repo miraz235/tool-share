@@ -9,13 +9,6 @@ declare namespace NodeJS {
   }
 }
 
-// Shims for remaining .jsx page modules until they're migrated to .tsx.
-// These keep `import X from "@/pages/X"` from raising TS2307 in the dev console
-// while still letting babel-loader / webpack resolve the actual .jsx implementation.
-declare module "@/pages/Landing";
-declare module "@/pages/ListTool";
-declare module "@/pages/Login";
-declare module "@/pages/Register";
-declare module "@/pages/AIAssistant";
-declare module "@/pages/Messages";
+// Sidecar TS for the remaining .tsx pages that aren't fully typed yet — none needed,
+// every page in /pages now ends in .tsx.
 

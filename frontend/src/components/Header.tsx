@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import CurrencySwitcher from "@/components/CurrencySwitcher";
 import { Wrench, Search, Sparkles, Plus, LogOut, LayoutDashboard, User as UserIcon, MessageSquare, Shield } from "lucide-react";
 
 export default function Header() {
@@ -71,6 +72,7 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <CurrencySwitcher />
           <LanguageSwitcher />
           {user ? (
             <>

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-ro
 import { useEffect, useRef } from "react";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth";
+import { CurrencyProvider } from "@/lib/currency";
 import { api, setToken } from "@/lib/api";
 
 import Landing from "@/pages/Landing";
@@ -85,8 +86,10 @@ export default function App() {
     <div className="App">
       <BrowserRouter>
         <AuthProvider>
-          <AppRouter />
-          <Toaster position="top-right" richColors />
+          <CurrencyProvider>
+            <AppRouter />
+            <Toaster position="top-right" richColors />
+          </CurrencyProvider>
         </AuthProvider>
       </BrowserRouter>
     </div>
