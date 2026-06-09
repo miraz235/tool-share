@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare, Send } from "lucide-react";
+import { formatTime } from "@/lib/dateFormat";
 
 export default function Messages() {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [threads, setThreads] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -116,7 +117,7 @@ export default function Messages() {
                     <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[70%] px-4 py-2 rounded-2xl ${mine ? 'bg-brand-primary text-white rounded-br-sm' : 'bg-brand-subtle text-brand-text rounded-bl-sm'}`}>
                         <p className="text-sm leading-relaxed whitespace-pre-line">{m.content}</p>
-                        <div className={`text-xs mt-1 ${mine ? 'text-white/70' : 'text-brand-muted'}`}>{m.created_at?.slice(11, 16)}</div>
+                        <div className={`text-xs mt-1 ${mine ? 'text-white/70' : 'text-brand-muted'}`}>{formatTime(m.created_at, i18n.language)}</div>
                       </div>
                     </div>
                   );

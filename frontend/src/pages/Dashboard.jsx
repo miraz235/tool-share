@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Calendar, Heart, Package, Trash2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { formatDateRange } from "@/lib/dateFormat";
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -198,6 +199,7 @@ function EmptyState({ icon: Icon, title, cta, to }) {
 }
 
 function BookingRow({ booking, role, onUpdateStatus }) {
+  const { t, i18n } = useTranslation();
   const statusColor = {
     pending: "bg-yellow-100 text-yellow-800",
     approved: "bg-green-100 text-green-800",
@@ -216,22 +218,22 @@ function BookingRow({ booking, role, onUpdateStatus }) {
           <Badge className={`${statusColor[booking.status]} border-0 capitalize`}>{booking.status}</Badge>
         </div>
         <div className="text-sm text-brand-muted">
-          {booking.start_date} → {booking.end_date} · ${booking.total_price} ·
-          {role === "renter" ? ` from ${booking.counterparty?.name}` : ` for ${booking.counterparty?.name}`}
+          {formatDateRange(booking.start_date, booking.end_date, i18n.language)} · ${booking.total_price} ·
+          {role === "renter" ? ` ${t("common.from")} ${booking.counterparty?.name}` : ` ${t("common.for")} ${booking.counterparty?.name}`}
         </div>
       </div>
       {role === "owner" && booking.status === "pending" && (
         <div className="flex gap-2">
           <Button onClick={() => onUpdateStatus(booking.id, "approved")}
             data-testid={`approve-${booking.id}`}
-            className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">Approve</Button>
+            className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">{t("common.approve")}</Button>
           <Button onClick={() => onUpdateStatus(booking.id, "declined")} variant="outline"
             data-testid={`decline-${booking.id}`}
-            className="rounded-xl">Decline</Button>
+            className="rounded-xl">{t("common.decline")}</Button>
         </div>
       )}
       <Button asChild variant="ghost" className="rounded-xl" data-testid={`view-booking-${booking.id}`}>
-        <Link to={`/bookings/${booking.id}`}>View</Link>
+        <Link to={`/bookings/${booking.id}`}>{t("common.view")}</Link>
       </Button>
     </div>
   );

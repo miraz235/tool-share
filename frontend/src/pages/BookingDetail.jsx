@@ -12,11 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Star, Calendar, Package, Truck, MessageSquare, CreditCard, ShieldCheck, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateRange, formatTime } from "@/lib/dateFormat";
 
 export default function BookingDetail() {
   const { id } = useParams();
   const [search] = useSearchParams();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const nav = useNavigate();
   const [booking, setBooking] = useState(null);
@@ -158,7 +159,7 @@ export default function BookingDetail() {
                   <Calendar className="w-5 h-5 text-brand-primary" />
                   <div>
                     <div className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("booking.dates")}</div>
-                    <div className="font-semibold text-sm">{booking.start_date} → {booking.end_date}</div>
+                    <div className="font-semibold text-sm">{formatDateRange(booking.start_date, booking.end_date, i18n.language)}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-4 bg-brand-subtle rounded-xl">
@@ -277,7 +278,7 @@ export default function BookingDetail() {
                     <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[85%] px-3 py-2 rounded-2xl ${mine ? 'bg-brand-primary text-white rounded-br-sm' : 'bg-brand-subtle text-brand-text rounded-bl-sm'}`}>
                         <p className="text-sm leading-relaxed whitespace-pre-line">{m.content}</p>
-                        <div className={`text-[10px] mt-1 ${mine ? 'text-white/70' : 'text-brand-muted'}`}>{m.created_at?.slice(11, 16)}</div>
+                        <div className={`text-[10px] mt-1 ${mine ? 'text-white/70' : 'text-brand-muted'}`}>{formatTime(m.created_at, i18n.language)}</div>
                       </div>
                     </div>
                   );

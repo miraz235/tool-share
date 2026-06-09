@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only i18n date formatting verification across Dashboard, BookingDetail, Admin tabs, and Messages. All 10 review checkpoints PASSED. No raw YYYY-MM-DD strings shown to user in any localized surface; Intl.DateTimeFormat range output exactly matches the spec for EN/FR/ES across single-day and multi-day bookings.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "verification_evidence": {
+    "dashboard_owner_tab_fr": ["23 juin 2026 · $25 · pour Miraz Chowdhury", "23–25 déc. 2044 · $60 · pour Sara Patel", "23–25 janv. 2043", "3–5 mai 2043"],
+    "dashboard_owner_tab_es": ["23 jun 2026", "23–25 dic 2044", "23–25 ene 2043", "3–5 may 2043"],
+    "dashboard_owner_tab_en": ["Jun 23, 2026", "Dec 23 – 25, 2044", "Jan 23 – 25, 2043", "May 3 – 5, 2043"],
+    "booking_detail_fr_dates_card": "23–25 déc. 2044 (no raw ISO present)",
+    "booking_detail_es_dates_card": "23–25 dic 2044 (no raw ISO present)",
+    "booking_detail_en_dates_card": "Jun 23, 2026 (no raw ISO present)",
+    "admin_bookings_es_table": ["22–24 jun 2026", "16–20 jun 2026", "23 jun 2026", "23–25 dic 2044", "23–25 ene 2043"],
+    "admin_users_fr_joined_column": ["9 juin 2026", "8 juin 2026"],
+    "admin_emails_en_timestamps": ["Jun 9, 2026, 08:28 AM", "Jun 9, 2026, 08:22 AM"],
+    "messages_fr_chat_timestamp": "22:08 (24h, no AM/PM) — correctly localized for fr-FR",
+    "regression_lang_switching": "Verified: header text in ES ('Bienvenido, Marcus', 'Publicar herramienta'), FR ('Tableau de bord', 'Publier un outil'), EN ('Welcome, Marcus') all translate. No console errors observed.",
+    "regression_toolcard_distance": "No occurrences of 'X km away' text found on /browse — 'away' word removed as expected."
+  },
+  "minor_observations": [
+    "Admin Email log entries contain raw ISO YYYY-MM-DD inside the email body text (e.g. 'tanzila rahman requested 20V Drill from 2026-06-22 to 2026-06-24'). This is the server-generated email message body content, not the display timestamp — out of scope for this i18n iteration which targets UI date formatting only. The actual 'sent_at' timestamp in the row is correctly localized via formatDateTime ('Jun 9, 2026, 08:28 AM'). Flagging as informational only.",
+    "ToolCard 'distance_km' km badge was not visible on /browse during this test run (logged-in admin viewing browse) — no km samples extracted. This may be because tools don't return distance_km when viewer has no geolocation OR is admin. Not a regression since the 'away' text removal is confirmed."
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "dateFormat.js correctly handles the YYYY-MM-DD timezone trap via T00:00:00 suffix — verified no day-shift across all 3 locales.",
+    "formatDateRange falls back gracefully when Intl.DateTimeFormat.prototype.formatRange is unavailable; modern browsers used in tests support it natively (output uses narrow-no-break-space thin separators).",
+    "i18n localStorage key is 'toolshare_lang' (per /app/frontend/src/i18n/index.js) — main agent should note this for any future programmatic language switching in tests."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Used marcus@toolshare.demo / demo1234 and admin@toolshare.demo / Admin1234! from /app/memory/test_credentials.md",
+  "seed_data_creation": "None — used existing seeded bookings (Dec 23–25 2044, Jan 23–25 2043, Jun 22–24 2026, etc.)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "i18n localStorage key = 'toolshare_lang' (not 'i18nextLng'). To programmatically switch language: localStorage.setItem('toolshare_lang', 'fr'|'es'|'en') then page.reload(). The lang-switcher dropdown is Radix-based and can have z-index conflicts with the 'Welcome back!' toast immediately after login — wait ~2s before clicking it or use localStorage approach. Date helper at /app/frontend/src/lib/dateFormat.js works across all locales/browsers.",
+  "rca of the issue": "N/A — no issues found. All localization assertions from review request matched verbatim (e.g. dashboard FR '23–25 déc. 2044', admin bookings ES '22–24 jun 2026', admin users FR '8 juin 2026', admin emails EN 'Jun 9, 2026, 08:28 AM', messages FR '22:08' 24h, booking detail FR '23–25 déc. 2044'). No raw YYYY-MM-DD leaks in any UI display surface."
+}

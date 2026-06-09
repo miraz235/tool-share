@@ -12,10 +12,11 @@ import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Users, Package, Calendar, DollarSign, AlertCircle, ShieldCheck, Search, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateRange, formatDate, formatDateTime } from "@/lib/dateFormat";
 
 export default function Admin() {
   const { user, loading } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -137,7 +138,7 @@ export default function Admin() {
                           </div>
                         </div>
                       </td>
-                      <td className="p-3 text-brand-muted">{u.created_at?.slice(0, 10)}</td>
+                      <td className="p-3 text-brand-muted">{formatDate(u.created_at, i18n.language)}</td>
                       <td className="p-3"><Switch checked={!!u.is_verified} onCheckedChange={v => toggle(u.id, "is_verified", v)} /></td>
                       <td className="p-3"><Switch checked={!!u.is_admin} onCheckedChange={v => toggle(u.id, "is_admin", v)} /></td>
                       <td className="p-3"><Switch checked={!!u.is_suspended} onCheckedChange={v => toggle(u.id, "is_suspended", v)} /></td>
@@ -171,7 +172,7 @@ export default function Admin() {
                       </td>
                       <td className="p-3 text-brand-muted">{b.renter_name}</td>
                       <td className="p-3 text-brand-muted">{b.owner_name}</td>
-                      <td className="p-3 text-xs text-brand-muted">{b.start_date} → {b.end_date}</td>
+                      <td className="p-3 text-xs text-brand-muted">{formatDateRange(b.start_date, b.end_date, i18n.language)}</td>
                       <td className="p-3 font-semibold">${b.total_price}</td>
                       <td className="p-3"><Badge className={`${statusColor[b.status]} border-0 capitalize`}>{b.status}</Badge></td>
                       <td className="p-3">{b.paid ? "✅" : "—"}</td>
@@ -228,7 +229,7 @@ export default function Admin() {
                 <div key={e.id} className="bg-white border border-brand-border rounded-xl p-4" data-testid={`email-log-${e.id}`}>
                   <div className="flex items-baseline gap-3 mb-1">
                     <div className="font-semibold text-sm">{e.subject}</div>
-                    <div className="text-xs text-brand-muted ml-auto">{e.sent_at?.slice(0, 19).replace('T', ' ')}</div>
+                    <div className="text-xs text-brand-muted ml-auto">{formatDateTime(e.sent_at, i18n.language)}</div>
                   </div>
                   <div className="text-xs text-brand-muted">to: {e.to}</div>
                   <p className="text-sm mt-1">{e.body}</p>
