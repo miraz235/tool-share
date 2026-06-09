@@ -158,6 +158,14 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ⚠️ **Email notifications** — MOCKED: writes to `db.email_log`. Provide Resend API key to enable real sending.
 - ✅ Tests: 43/43 backend pytest, frontend flows verified
 
+## 12c. i18n Build (2026-06-09)
+- ✅ **Multi-language EN/FR/ES** via `react-i18next` + `i18next-browser-languagedetector`
+- ✅ `LanguageSwitcher` dropdown in header (🇨🇦 English / 🇫🇷 Français / 🇪🇸 Español)
+- ✅ Language persisted in localStorage `toolshare_lang`
+- ✅ All key pages translated (Landing, Header/Footer, Browse, ToolDetail, ListTool, Login, Register, Dashboard, AIAssistant, BookingDetail, Messages, Profile, Admin, ToolCard)
+- ✅ AI Assistant example chips adapt to current language; category labels translated
+- ✅ Tests: 100% frontend i18n pass on EN/FR/ES across 7 key pages
+
 ## 13. Prioritized Backlog
 - **P0 (done)**: Auth, listings + images, map search, AI assistant, bookings, reviews, favorites
 - **P1**: Stripe Connect, in-app messaging, email notifications, admin dashboard, identity verification
