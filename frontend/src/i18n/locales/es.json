@@ -169,7 +169,9 @@
     "fill_required": "Completa todos los campos requeridos, incluidos lat/lng",
     "upload_failed": "Error al subir",
     "tool_listed": "¡Herramienta publicada!",
-    "create_failed": "Error al crear"
+    "create_failed": "Error al crear",
+    "currency_label": "Moneda",
+    "currency_hint": "Precio en esta moneda; el marketplace convierte al vuelo."
   },
   "auth": {
     "welcome_back": "Bienvenido de vuelta",
@@ -239,7 +241,13 @@
     "no_nearby": "Aún no hay anuncios cercanos — prueba la categoría",
     "category": "categoría",
     "safety_tips": "Consejos de seguridad",
-    "ai_error": "Error del servicio IA — inténtalo de nuevo"
+    "ai_error": "Error del servicio IA — inténtalo de nuevo",
+    "quota_label": "{{remaining}} / {{total}} consultas IA restantes (24h)",
+    "quota_exceeded": "Has alcanzado el límite diario del Asistente IA. Inténtalo de nuevo en unas horas.",
+    "unlimited": "Ilimitado (admin)",
+    "login_required_title": "Inicia sesión para usar el Asistente IA",
+    "login_required_body": "Limitamos el uso de la IA a usuarios autenticados para mantener el servicio gratuito y evitar abusos.",
+    "sign_in_cta": "Iniciar sesión"
   },
   "booking": {
     "back_dashboard": "← Volver al panel",

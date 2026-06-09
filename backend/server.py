@@ -163,6 +163,8 @@ class ToolIn(BaseModel):
     # Buying / selling
     listing_type: Literal["rent", "sell", "both"] = "rent"
     sale_price: float = 0
+    # Currency the owner authored the price in. Display layer converts to viewer currency.
+    price_currency: Literal["USD", "CAD", "EUR", "GBP", "MXN", "AUD"] = "USD"
 
 
 class Tool(ToolIn):
@@ -572,6 +574,7 @@ async def list_tools(
     radius_km: float = 50.0,
     owner_id: Optional[str] = None,
     featured_only: bool = False,
+    viewer_currency: Optional[str] = None,
     limit: int = 60,
 ):
     filt = {"is_available": True, "is_sold": {"$ne": True}}
@@ -585,10 +588,14 @@ async def list_tools(
     if listing_type and listing_type in ("rent", "sell"):
         # tools with listing_type == filter OR == "both"
         filt["listing_type"] = {"$in": [listing_type, "both"]}
-    if min_price is not None:
-        filt["daily_price"] = {"$gte": min_price}
-    if max_price is not None:
-        filt.setdefault("daily_price", {})["$lte"] = max_price
+    # Price filters: when a viewer_currency is supplied we filter in Python so we
+    # compare apples-to-apples across listings authored in different currencies.
+    apply_price_filter_in_db = viewer_currency is None
+    if apply_price_filter_in_db:
+        if min_price is not None:
+            filt["daily_price"] = {"$gte": min_price}
+        if max_price is not None:
+            filt.setdefault("daily_price", {})["$lte"] = max_price
     if city:
         filt["location.city"] = {"$regex": f"^{city}$", "$options": "i"}
     if postal_code:
@@ -601,6 +608,25 @@ async def list_tools(
     # Featured first, then by recency
     cur = db.tools.find(filt, {"_id": 0}).sort([("is_featured", -1), ("created_at", -1)]).limit(limit)
     tools = await cur.to_list(length=limit)
+
+    # Currency-aware price filtering: convert each tool's daily_price into the viewer's
+    # currency before comparing against min/max. Keeps comparisons fair when owners
+    # author listings in different currencies (e.g., CAD vs USD).
+    if viewer_currency and (min_price is not None or max_price is not None):
+        vc = viewer_currency.upper()
+        viewer_rate = _DEFAULT_RATES.get(vc, 1.0)
+        filtered: List[dict] = []
+        for tool in tools:
+            tc = (tool.get("price_currency") or "USD").upper()
+            tool_rate = _DEFAULT_RATES.get(tc, 1.0)
+            # daily_price is in tool's native currency. Convert to viewer's:
+            price_in_viewer = float(tool.get("daily_price", 0)) * (viewer_rate / tool_rate)
+            if min_price is not None and price_in_viewer < min_price:
+                continue
+            if max_price is not None and price_in_viewer > max_price:
+                continue
+            filtered.append(tool)
+        tools = filtered
 
     if lat is not None and lng is not None:
         result = []
@@ -1166,8 +1192,54 @@ Valid categories: power-tools, hand-tools, gardening, lawn-care, painting, plumb
 Pick 4-8 tools. Keep names concise (1-3 words). Map each tool to the BEST-FIT category from the list above."""
 
 
+AI_DAILY_LIMIT = 15  # logged-in users; admins unlimited
+AI_WINDOW_HOURS = 24
+
+
+async def _ai_quota_check(user: dict) -> dict:
+    """Returns dict with remaining/total. Raises 429 when exceeded."""
+    if user.get("is_admin"):
+        return {"remaining": -1, "total": -1, "unlimited": True}
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=AI_WINDOW_HOURS)
+    used = await db.ai_usage.count_documents({
+        "user_id": user["id"],
+        "created_at": {"$gte": cutoff.isoformat()},
+    })
+    remaining = max(0, AI_DAILY_LIMIT - used)
+    if remaining <= 0:
+        raise HTTPException(
+            429,
+            detail={
+                "code": "ai_quota_exceeded",
+                "message": f"AI Assistant limit reached. Try again later (max {AI_DAILY_LIMIT}/24h).",
+                "remaining": 0,
+                "total": AI_DAILY_LIMIT,
+            },
+        )
+    return {"remaining": remaining, "total": AI_DAILY_LIMIT, "unlimited": False}
+
+
+@api.get("/ai/quota")
+async def ai_quota(user: dict = Depends(current_user)):
+    if user.get("is_admin"):
+        return {"remaining": -1, "total": -1, "unlimited": True}
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=AI_WINDOW_HOURS)
+    used = await db.ai_usage.count_documents({
+        "user_id": user["id"],
+        "created_at": {"$gte": cutoff.isoformat()},
+    })
+    return {
+        "remaining": max(0, AI_DAILY_LIMIT - used),
+        "total": AI_DAILY_LIMIT,
+        "unlimited": False,
+    }
+
+
 @api.post("/ai/recommend")
-async def ai_recommend(payload: AIRecommendIn):
+async def ai_recommend(payload: AIRecommendIn, user: dict = Depends(current_user)):
+    # Anonymous users are blocked by current_user (returns 401). Logged-in users
+    # are rate-limited; admins are unlimited.
+    quota = await _ai_quota_check(user)
     if not EMERGENT_LLM_KEY:
         raise HTTPException(500, "LLM not configured")
     session_id = f"toolshare_{uuid.uuid4().hex[:8]}"
@@ -1244,6 +1316,25 @@ async def ai_recommend(payload: AIRecommendIn):
         t["available_listings"] = scored[:3]
 
     parsed["tools"] = tools_recs
+    # Record usage and attach remaining quota to the response so the frontend can
+    # update its counter without an extra round-trip.
+    try:
+        await db.ai_usage.insert_one({
+            "user_id": user["id"],
+            "task": payload.task[:300] if payload.task else "",
+            "created_at": now_iso(),
+        })
+    except Exception as e:
+        logger.error(f"ai_usage write failed: {e}")
+    if quota.get("unlimited"):
+        parsed["quota"] = {"remaining": -1, "total": -1, "unlimited": True}
+    else:
+        # remaining was computed BEFORE we inserted the new usage doc
+        parsed["quota"] = {
+            "remaining": max(0, quota["remaining"] - 1),
+            "total": quota["total"],
+            "unlimited": False,
+        }
     return parsed
 
 
@@ -1273,6 +1364,7 @@ async def on_startup():
     await db.reviews.create_index(
         [("booking_id", 1), ("reviewer_id", 1), ("target_type", 1)], unique=True
     )
+    await db.ai_usage.create_index([("user_id", 1), ("created_at", -1)])
     await db.messages.create_index("booking_id")
     await db.messages.create_index("recipient_id")
     await db.payment_transactions.create_index("session_id", unique=True)

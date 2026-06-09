@@ -7,6 +7,7 @@ interface MapTool {
   id: string;
   daily_price: number;
   title: string;
+  price_currency?: string;
   location?: { lat?: number; lng?: number; city?: string; is_approximate?: boolean };
 }
 
@@ -140,14 +141,14 @@ export default function MapView({ tools = [], center, onSelect, selectedId, appr
           <Marker
             key={tl.id}
             position={[lat, lng]}
-            icon={makePinIcon(format(tl.daily_price), selectedId === tl.id)}
+            icon={makePinIcon(format(tl.daily_price, { from: tl.price_currency }), selectedId === tl.id)}
             eventHandlers={{ click: () => onSelect && onSelect(tl) }}
           >
             <Popup>
               <div style={{ minWidth: 160 }}>
                 <div style={{ fontWeight: 700, fontFamily: 'Manrope' }}>{tl.title}</div>
                 <div style={{ color: '#545C58', fontSize: 12 }}>{tl.location?.city}</div>
-                <div style={{ color: '#D36135', fontWeight: 700, marginTop: 4 }}>{format(tl.daily_price)}/day</div>
+                <div style={{ color: '#D36135', fontWeight: 700, marginTop: 4 }}>{format(tl.daily_price, { from: tl.price_currency })}/day</div>
                 <a href={`/tools/${tl.id}`} style={{ color: '#2D5A4C', fontSize: 12, fontWeight: 600 }}>View details →</a>
               </div>
             </Popup>

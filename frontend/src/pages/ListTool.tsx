@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api, imageUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useCurrency, CURRENCIES } from "@/lib/currency";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { Upload, X, Loader2 } from "lucide-react";
 
 export default function ListTool() {
   const { user, loading } = useAuth();
+  const { currency: viewerCurrency } = useCurrency();
   const { t } = useTranslation();
   const nav = useNavigate();
   const [categories, setCategories] = useState([]);
@@ -27,6 +29,7 @@ export default function ListTool() {
     description: "",
     category: "",
     daily_price: "",
+    price_currency: viewerCurrency,
     security_deposit: "",
     condition: "Good",
     pickup_available: true,
@@ -78,6 +81,7 @@ export default function ListTool() {
         description: form.description,
         category: form.category,
         daily_price: parseFloat(form.daily_price),
+        price_currency: form.price_currency,
         security_deposit: parseFloat(form.security_deposit || 0),
         condition: form.condition,
         images,
@@ -186,11 +190,25 @@ export default function ListTool() {
           </section>
 
           {/* Pricing */}
-          <section className="grid grid-cols-2 gap-4">
-            <div>
+          <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-1">
               <Label className="font-bold">{t("list_tool.daily_price")} *</Label>
               <Input type="number" min="1" value={form.daily_price} onChange={e => upd("daily_price", e.target.value)}
                 data-testid="price-input" className="rounded-xl mt-1" placeholder="25" />
+            </div>
+            <div>
+              <Label className="font-bold">{t("list_tool.currency_label")}</Label>
+              <select
+                value={form.price_currency}
+                onChange={e => upd("price_currency", e.target.value)}
+                data-testid="price-currency-select"
+                className="w-full h-9 mt-1 rounded-xl border border-brand-border bg-white px-3 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-brand-primary"
+              >
+                {CURRENCIES.map(c => (
+                  <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-brand-muted mt-1">{t("list_tool.currency_hint")}</p>
             </div>
             <div>
               <Label className="font-bold">{t("list_tool.security_deposit")}</Label>

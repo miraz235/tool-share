@@ -12,7 +12,14 @@ interface CurrencyDef {
 interface CurrencyContextValue {
   currency: string;
   change: (code: string) => void;
-  format: (usdAmount: number | null | undefined, opts?: { maxDigits?: number; lang?: string }) => string;
+  /**
+   * Format a number as the active display currency.
+   * @param amount - Numeric value in `opts.from` currency (defaults to USD).
+   * @param opts.from - Source currency the amount was authored in (default "USD").
+   * @param opts.maxDigits - Max fraction digits in the rendered string.
+   * @param opts.lang - Override Intl locale (default = currency's locale).
+   */
+  format: (amount: number | null | undefined, opts?: { maxDigits?: number; lang?: string; from?: string }) => string;
   rates: Record<string, number>;
   detecting: boolean;
 }
@@ -98,10 +105,13 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem(STORAGE_KEY, code); } catch { /* ignore */ }
   }, []);
 
-  const format = useCallback((usdAmount: number | null | undefined, opts: { maxDigits?: number; lang?: string } = {}): string => {
-    if (usdAmount === null || usdAmount === undefined) return "";
-    const rate = rates[currency] ?? 1;
-    const converted = Number(usdAmount) * rate;
+  const format = useCallback((amount: number | null | undefined, opts: { maxDigits?: number; lang?: string; from?: string } = {}): string => {
+    if (amount === null || amount === undefined) return "";
+    const from = (opts.from || "USD").toUpperCase();
+    // Convert source -> USD -> target via the cached USD-based rate table.
+    const fromRate = rates[from] ?? 1;
+    const toRate = rates[currency] ?? 1;
+    const converted = (Number(amount) / fromRate) * toRate;
     const lang = opts.lang
       || CURRENCIES.find((c) => c.code === currency)?.locale
       || (typeof navigator !== "undefined" ? navigator.language : "en");

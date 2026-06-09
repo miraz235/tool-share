@@ -169,7 +169,9 @@
     "fill_required": "Fill in all required fields including lat/lng",
     "upload_failed": "Upload failed",
     "tool_listed": "Tool listed!",
-    "create_failed": "Failed to create listing"
+    "create_failed": "Failed to create listing",
+    "currency_label": "Currency",
+    "currency_hint": "Price authored in this currency; the marketplace converts on the fly."
   },
   "auth": {
     "welcome_back": "Welcome back",
@@ -239,7 +241,13 @@
     "no_nearby": "No nearby listings yet — try the",
     "category": "category",
     "safety_tips": "Safety tips",
-    "ai_error": "AI service error — try again"
+    "ai_error": "AI service error — try again",
+    "quota_label": "{{remaining}} / {{total}} AI requests left (24h)",
+    "quota_exceeded": "You've hit the daily AI Assistant limit. Try again in a few hours.",
+    "unlimited": "Unlimited (admin)",
+    "login_required_title": "Sign in to use the AI Assistant",
+    "login_required_body": "We limit AI use to logged-in users to keep the service free and prevent abuse.",
+    "sign_in_cta": "Sign in"
   },
   "booking": {
     "back_dashboard": "← Back to dashboard",

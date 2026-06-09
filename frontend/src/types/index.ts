@@ -49,6 +49,7 @@ export interface Tool {
   condition: string;
   listing_type: ListingType;
   sale_price: number;
+  price_currency?: string;
   images: string[];
   location: ApiLocation;
   pickup_methods?: PickupMethod[];

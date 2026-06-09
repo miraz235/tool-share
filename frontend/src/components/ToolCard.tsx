@@ -80,11 +80,11 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }: ToolCar
         </div>
         <div className="flex items-baseline justify-between gap-2">
           <div className="flex items-baseline gap-1">
-            <span className="font-heading font-extrabold text-xl text-brand-secondary" data-testid={`tool-price-${tool.id}`}>{format(tool.daily_price)}</span>
+            <span className="font-heading font-extrabold text-xl text-brand-secondary" data-testid={`tool-price-${tool.id}`}>{format(tool.daily_price, { from: tool.price_currency })}</span>
             <span className="text-xs text-brand-muted">{t("common.per_day")}</span>
           </div>
           {forSale && tool.sale_price > 0 && (
-            <div className="text-xs font-semibold text-brand-primary">{format(tool.sale_price)} {t("common.buy")}</div>
+            <div className="text-xs font-semibold text-brand-primary">{format(tool.sale_price, { from: tool.price_currency })} {t("common.buy")}</div>
           )}
         </div>
       </div>

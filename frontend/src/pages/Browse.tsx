@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal, Compass, Loader2, Crosshair } from "lucide-react";
 import type { Tool, ListingType } from "@/types";
+import { useCurrency } from "@/lib/currency";
 
 const DEFAULT_RADIUS = 50;
 const MAX_PRICE = 500;
@@ -92,6 +93,7 @@ function saveFilters(patch: SavedFilters): void {
 
 export default function Browse() {
   const { t } = useTranslation();
+  const { currency: viewerCurrency } = useCurrency();
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const [tools, setTools] = useState<Tool[]>([]);
@@ -195,7 +197,10 @@ export default function Browse() {
     if (category && category !== "all") queryParams.category = category;
     if (city) queryParams.city = city;
     if (listingType && listingType !== "all") queryParams.listing_type = listingType;
-    if (maxPrice && maxPrice < MAX_PRICE) queryParams.max_price = maxPrice;
+    if (maxPrice && maxPrice < MAX_PRICE) {
+      queryParams.max_price = maxPrice;
+      queryParams.viewer_currency = viewerCurrency;
+    }
     // Prefer the user-driven map center when present; otherwise fall back to device geolocation
     const effectiveCenter = searchCenter ?? (userLocation ? { ...userLocation, source: "user" as const } : null);
     if (effectiveCenter) {
@@ -206,7 +211,7 @@ export default function Browse() {
     api.get<Tool[]>("/tools", { params: queryParams })
       .then((r) => setTools(r.data))
       .finally(() => setLoading(false));
-  }, [q, category, city, listingType, maxPrice, radiusKm, userLocation, searchCenter]);
+  }, [q, category, city, listingType, maxPrice, radiusKm, userLocation, searchCenter, viewerCurrency]);
 
   const updateParam = (k: string, v: string) => {
     const p = new URLSearchParams(params);

@@ -227,5 +227,14 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ i18n fix: removed hard-coded `$` prefix from `tool.deposit_refundable` and `admin.owed` in EN/FR/ES; values now pre-formatted via `format()` before being passed to `t()`.
 - ✅ Verified live: EUR mode shows "11 € / day · + 37 € refundable deposit · +7 €/day · +18 €/day" with zero hard-coded `$` price fields anywhere. (Insurance tier labels like "$1,000 coverage" remain — those are coverage caps, not display prices.)
 
+## 12k. Per-listing local pricing + AI quota (2026-06-09)
+- ✅ **Per-listing currency**: `tools.price_currency` field (default "USD") on backend. ListTool form has a currency dropdown (data-testid `price-currency-select`) defaulting to the viewer's currency. CURRENCIES list shared from `lib/currency.tsx`.
+- ✅ **On-the-fly conversion**: `useCurrency().format(amount, { from: tool.price_currency })` extended to handle source ≠ display. Browse, ToolCard, ToolDetail, MapView pins/popups all pass `from: tool.price_currency`. Conversion goes amount → USD → target currency via the cached rates table.
+- ✅ **Currency-aware price filter**: GET `/api/tools` accepts `viewer_currency` param; when paired with `max_price`/`min_price` it filters in Python by converting each listing's price to viewer currency. Verified: `max_price=15&viewer_currency=EUR` matches a $12 listing (~11 €), `max_price=10&viewer_currency=USD` matches 0 listings.
+- ✅ **AI rate limit**: `db.ai_usage` collection + rolling 24h window. Anonymous = 401 (must sign in). Logged-in = 15/24h. Admin = unlimited. GET `/api/ai/quota` returns counter; POST `/api/ai/recommend` returns 429 with `{message, remaining, total}` when exceeded and includes `quota` in success response.
+- ✅ **AIAssistant UI**: counter pill `15 / 15 AI requests left (24h)` (data-testid `ai-quota-counter`); login gate (`ai-login-gate`) for anonymous; quota error banner (`ai-quota-error`) on 429; input/submit disabled when remaining=0; unlimited badge for admin.
+- ✅ i18n keys added (EN/FR/ES): `ai.quota_label`, `ai.quota_exceeded`, `ai.unlimited`, `ai.login_required_title/body`, `ai.sign_in_cta`, `list_tool.currency_label`, `list_tool.currency_hint`.
+- ✅ Verified live: anonymous shows login gate; logged-in shows 15/15 counter; backend quota endpoint returns correct counts; currency filter math correct.
+
 ## 13. Prioritized Backlog
 

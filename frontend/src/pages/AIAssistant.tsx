@@ -1,13 +1,14 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useCurrency } from "@/lib/currency";
+import { useAuth } from "@/lib/auth";
 import Header from "@/components/Header";
 import { api, imageUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Loader2, Wrench, ShieldAlert, Clock, Gauge, ArrowRight } from "lucide-react";
+import { Sparkles, Loader2, Wrench, ShieldAlert, Clock, Gauge, ArrowRight, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 const EXAMPLES_BY_LANG = {
@@ -37,21 +38,46 @@ const EXAMPLES_BY_LANG = {
 export default function AIAssistant() {
   const { t, i18n } = useTranslation();
   const { format } = useCurrency();
+  const { user, loading: authLoading } = useAuth();
+  const nav = useNavigate();
   const EXAMPLES = EXAMPLES_BY_LANG[i18n.language?.split("-")[0]] || EXAMPLES_BY_LANG.en;
   const [task, setTask] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [quota, setQuota] = useState(null); // { remaining, total, unlimited }
+  const [quotaErr, setQuotaErr] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+    api.get("/ai/quota").then(r => setQuota(r.data)).catch(() => {});
+  }, [user]);
 
   const submit = async (e) => {
     e?.preventDefault();
     if (!task.trim()) return;
+    if (!user) { nav("/login?next=/ai"); return; }
+    if (quota && !quota.unlimited && quota.remaining <= 0) {
+      setQuotaErr(t("ai.quota_exceeded"));
+      return;
+    }
     setLoading(true);
     setResult(null);
+    setQuotaErr("");
     try {
       const res = await api.post("/ai/recommend", { task });
       setResult(res.data);
+      if (res.data?.quota) setQuota(res.data.quota);
     } catch (err) {
-      toast.error(t("ai.ai_error"));
+      if (err?.response?.status === 429) {
+        const detail = err.response.data?.detail;
+        const msg = typeof detail === "object" ? detail.message : detail;
+        setQuotaErr(msg || t("ai.quota_exceeded"));
+        if (typeof detail === "object") {
+          setQuota({ remaining: 0, total: detail.total, unlimited: false });
+        }
+      } else {
+        toast.error(t("ai.ai_error"));
+      }
     } finally {
       setLoading(false);
     }
@@ -74,7 +100,38 @@ export default function AIAssistant() {
           </div>
           <h1 className="font-heading text-4xl md:text-5xl font-extrabold mb-3 text-balance">{t("ai.title")}</h1>
           <p className="text-brand-muted text-lg max-w-xl mx-auto">{t("ai.subtitle")}</p>
+          {user && quota && !quota.unlimited && (
+            <div className="mt-4 inline-flex items-center gap-2 bg-white border border-brand-border rounded-full px-3 py-1 text-xs font-semibold text-brand-muted" data-testid="ai-quota-counter">
+              <Gauge className="w-3 h-3" />
+              {t("ai.quota_label", { remaining: quota.remaining, total: quota.total })}
+            </div>
+          )}
+          {user && quota?.unlimited && (
+            <div className="mt-4 inline-flex items-center gap-2 bg-brand-primary/10 text-brand-primary border border-brand-primary/20 rounded-full px-3 py-1 text-xs font-bold" data-testid="ai-quota-unlimited">
+              <Sparkles className="w-3 h-3" /> {t("ai.unlimited")}
+            </div>
+          )}
         </div>
+
+        {!user && !authLoading && (
+          <div className="bg-brand-primary/5 border border-brand-primary/20 rounded-2xl p-5 mb-6 flex items-start gap-3" data-testid="ai-login-gate">
+            <Lock className="w-5 h-5 text-brand-primary mt-0.5" />
+            <div className="flex-1">
+              <div className="font-semibold mb-1">{t("ai.login_required_title")}</div>
+              <p className="text-sm text-brand-muted mb-3">{t("ai.login_required_body")}</p>
+              <Link to="/login?next=/ai" className="inline-flex items-center gap-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl px-4 py-2 text-sm font-semibold transition-colors">
+                {t("ai.sign_in_cta")} <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {quotaErr && (
+          <div className="bg-red-50 border border-red-200 text-red-800 rounded-2xl p-4 mb-6 flex items-start gap-2" data-testid="ai-quota-error">
+            <ShieldAlert className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <div className="text-sm font-medium">{quotaErr}</div>
+          </div>
+        )}
 
         <form onSubmit={submit} className="bg-white border border-brand-border rounded-2xl p-6 shadow-sm mb-6">
           <Textarea
@@ -83,10 +140,11 @@ export default function AIAssistant() {
             placeholder={t("ai.input_ph")}
             className="border-0 focus-visible:ring-0 min-h-[100px] text-base resize-none p-0"
             data-testid="ai-task-input"
+            disabled={!!user && quota && !quota.unlimited && quota.remaining <= 0}
           />
           <div className="flex items-center justify-between mt-3">
             <span className="text-xs text-brand-muted">{task.length} chars</span>
-            <Button type="submit" disabled={loading || !task.trim()}
+            <Button type="submit" disabled={loading || !task.trim() || (!!user && quota && !quota.unlimited && quota.remaining <= 0)}
               data-testid="ai-submit-btn"
               className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl font-semibold h-11 px-6">
               {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("ai.thinking")}</> : <>{t("ai.find_tools")} <ArrowRight className="w-4 h-4 ml-1.5" /></>}
