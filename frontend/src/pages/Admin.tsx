@@ -324,7 +324,7 @@ export default function Admin() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, sub }) {
+function StatCard({ icon: Icon, label, value, sub }: { icon: any; label: string; value: any; sub?: string }) {
   return (
     <div className="bg-white border border-brand-border rounded-2xl p-6">
       <div className="flex items-center gap-3 mb-3">

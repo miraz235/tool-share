@@ -119,7 +119,7 @@ export default function BookingDetail() {
     if (rating === 0) { toast.error("Pick a rating"); return; }
     setSubmitting(true);
     try {
-      const body = { booking_id: id, rating, comment, target_type };
+      const body: { booking_id: string; rating: number; comment: string; target_type: string; condition_tag?: string } = { booking_id: id, rating, comment, target_type };
       if (target_type === "tool" && conditionTag) body.condition_tag = conditionTag;
       await api.post("/reviews", body);
       toast.success("Review submitted");

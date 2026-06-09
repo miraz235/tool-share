@@ -11,12 +11,41 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal, Compass, Loader2 } from "lucide-react";
+import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal, Compass, Loader2, Crosshair } from "lucide-react";
 import type { Tool, ListingType } from "@/types";
 
 const DEFAULT_RADIUS = 50;
 const MAX_PRICE = 500;
 const STORAGE_KEY = "toolshare_browse_filters";
+
+interface MapSearchHintProps {
+  searchCenter: { source: "user" | "map" } | null;
+  userLocationAvailable: boolean;
+  onRecenter: () => void;
+}
+
+function MapSearchHint({ searchCenter, userLocationAvailable, onRecenter }: MapSearchHintProps) {
+  // Only show the "back to my location" affordance once the user has moved the map
+  if (!searchCenter || searchCenter.source !== "map") return null;
+  return (
+    <div
+      className="absolute top-7 left-1/2 -translate-x-1/2 z-[400] bg-white/95 backdrop-blur shadow-md rounded-full border border-brand-border px-4 py-2 flex items-center gap-2 text-xs font-semibold pointer-events-auto"
+      data-testid="map-search-hint"
+    >
+      <span className="text-brand-text">{`Showing tools in this map area`}</span>
+      {userLocationAvailable && (
+        <button
+          onClick={onRecenter}
+          data-testid="map-recenter-btn"
+          className="flex items-center gap-1 text-brand-primary hover:text-brand-primary-hover transition-colors"
+        >
+          <Crosshair className="w-3.5 h-3.5" />
+          Use my location
+        </button>
+      )}
+    </div>
+  );
+}
 
 type ListingTypeFilter = ListingType | "all";
 
@@ -34,6 +63,13 @@ interface CategoryItem {
 interface UserCoords {
   lat: number;
   lng: number;
+}
+
+interface SearchCenter {
+  lat: number;
+  lng: number;
+  /** "user" = from device geolocation, "map" = user moved the map */
+  source: "user" | "map";
 }
 
 function loadSavedFilters(): SavedFilters {
@@ -65,6 +101,7 @@ export default function Browse() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserCoords | null>(null);
   const [geoLoading, setGeoLoading] = useState<boolean>(false);
+  const [searchCenter, setSearchCenter] = useState<SearchCenter | null>(null);
 
   // On mount: if URL has no filter params, hydrate from localStorage
   useEffect(() => {
@@ -112,13 +149,34 @@ export default function Browse() {
     setGeoLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(coords);
+        // Seed map-search center with user position so the first search is local
+        setSearchCenter((prev) => prev ?? { ...coords, source: "user" });
         setGeoLoading(false);
       },
       () => { setGeoLoading(false); },
       { maximumAge: 5 * 60 * 1000, timeout: 8000 }
     );
   }, []);
+
+  // When the user pans/zooms the map, recenter the search and derive radius from viewport.
+  const handleMapMove = (lat: number, lng: number, derivedRadiusKm: number) => {
+    setSearchCenter({ lat, lng, source: "map" });
+    // Sync radius slider UI; commit to URL via existing slider param to keep filter state coherent
+    setRadiusUI(derivedRadiusKm);
+    const p = new URLSearchParams(params);
+    p.set("radius_km", String(derivedRadiusKm));
+    setParams(p, { replace: true });
+  };
+
+  const recenterToMyLocation = () => {
+    if (userLocation) {
+      setSearchCenter({ ...userLocation, source: "user" });
+    } else {
+      requestGeo();
+    }
+  };
 
   useEffect(() => {
     api.get<CategoryItem[]>("/categories")
@@ -134,15 +192,17 @@ export default function Browse() {
     if (city) queryParams.city = city;
     if (listingType && listingType !== "all") queryParams.listing_type = listingType;
     if (maxPrice && maxPrice < MAX_PRICE) queryParams.max_price = maxPrice;
-    if (userLocation) {
-      queryParams.lat = userLocation.lat;
-      queryParams.lng = userLocation.lng;
+    // Prefer the user-driven map center when present; otherwise fall back to device geolocation
+    const effectiveCenter = searchCenter ?? (userLocation ? { ...userLocation, source: "user" as const } : null);
+    if (effectiveCenter) {
+      queryParams.lat = effectiveCenter.lat;
+      queryParams.lng = effectiveCenter.lng;
       queryParams.radius_km = radiusKm;
     }
     api.get<Tool[]>("/tools", { params: queryParams })
       .then((r) => setTools(r.data))
       .finally(() => setLoading(false));
-  }, [q, category, city, listingType, maxPrice, radiusKm, userLocation]);
+  }, [q, category, city, listingType, maxPrice, radiusKm, userLocation, searchCenter]);
 
   const updateParam = (k: string, v: string) => {
     const p = new URLSearchParams(params);
@@ -155,16 +215,20 @@ export default function Browse() {
     setGeoLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(coords);
+        setSearchCenter({ ...coords, source: "user" });
         setGeoLoading(false);
       },
       () => { setGeoLoading(false); }
     );
   };
 
-  const mapCenter: [number, number] | undefined = userLocation
-    ? [userLocation.lat, userLocation.lng]
-    : undefined;
+  const mapCenter: [number, number] | undefined = searchCenter
+    ? [searchCenter.lat, searchCenter.lng]
+    : userLocation
+      ? [userLocation.lat, userLocation.lng]
+      : undefined;
 
   return (
     <div className="min-h-screen bg-brand-bg">
@@ -318,8 +382,15 @@ export default function Browse() {
             </div>
           </div>
         ) : view === "map" ? (
-          <div className="h-[calc(100vh-160px)] p-4">
-            <MapView tools={tools} center={mapCenter} onSelect={(tool: Tool) => nav(`/tools/${tool.id}`)} selectedId={selectedId} />
+          <div className="h-[calc(100vh-160px)] p-4 relative">
+            <MapView
+              tools={tools}
+              center={mapCenter}
+              onSelect={(tool: Tool) => nav(`/tools/${tool.id}`)}
+              selectedId={selectedId}
+              onCenterChange={handleMapMove}
+            />
+            <MapSearchHint searchCenter={searchCenter} onRecenter={recenterToMyLocation} userLocationAvailable={!!userLocation} />
           </div>
         ) : (
           <div className="grid lg:grid-cols-[1fr_1.4fr] h-[calc(100vh-160px)]">
@@ -341,8 +412,15 @@ export default function Browse() {
                 ))}
               </div>
             </div>
-            <div className="hidden lg:block p-4">
-              <MapView tools={tools} center={mapCenter} onSelect={(tool: Tool) => setSelectedId(tool.id)} selectedId={selectedId} />
+            <div className="hidden lg:block p-4 relative">
+              <MapView
+                tools={tools}
+                center={mapCenter}
+                onSelect={(tool: Tool) => setSelectedId(tool.id)}
+                selectedId={selectedId}
+                onCenterChange={handleMapMove}
+              />
+              <MapSearchHint searchCenter={searchCenter} onRecenter={recenterToMyLocation} userLocationAvailable={!!userLocation} />
             </div>
           </div>
         )}

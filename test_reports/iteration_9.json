@@ -1,0 +1,81 @@
+{
+  "summary": "Iteration 9 — Backend regression PASSED (23/23). TypeScript migration regression PASSED (all 5 newly-converted pages + 3 other routes render with ZERO runtime page-errors). Map-driven search BACKEND works perfectly (/api/tools accepts lat/lng/radius_km and returns sorted by distance — 4/4 new tests pass). Map-driven search FRONTEND has a MAJOR UX bug: panning fires the debounced API call correctly with new lat/lng/radius_km, BUT the hint pill (data-testid='map-search-hint') and recenter button (data-testid='map-recenter-btn') NEVER appear after pan, because they are rendered INSIDE the same JSX branch as the map; when the new search center returns zero tools, the empty-state branch wins and unmounts both the map AND the hint, leaving the user no way to recenter back to their location except 'Clear filters'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Browse.tsx (lines 384-426)",
+        "issue": "MapSearchHint is rendered ONLY inside `view === 'map'` and split-view branches (lines 393 & 423). When tools.length===0 after a pan, the `No tools found` empty-state branch wins (line 364) and the entire map + hint pill unmount. Result: the hint NEVER actually becomes visible to a user who pans into an empty area, AND the user has no way to recenter except 'Clear filters' (which wipes ALL filters).",
+        "selector": "[data-testid='map-search-hint'], [data-testid='map-recenter-btn']",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Browse.tsx handleMapMove (line 164-171)",
+        "issue": "Pan ALWAYS overwrites the user's explicit radius_km slider value with the viewport-derived radius. If user dragged the slider to 200 km, then pans the map, radius gets clamped back to ~50 km, narrowing their search unexpectedly. Recommend: only derive radius_km when user has not explicitly set one (e.g., when the URL has no radius_km param) OR keep the explicit slider value as the source of truth and use viewport solely for the initial fit.",
+        "selector": "n/a",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "MapView.tsx initial zoom (line 89)",
+        "issue": "Initial map zoom is 11 on a 1920px-wide pane → the viewport spans ~3000 km. A user's tiny 50-px drag jumps the center hundreds of km, instantly producing empty results. Recommend either (a) a higher default zoom (13-14) when only a few tools are loaded in a single city, or (b) keeping fitBounds tight when all tools are clustered.",
+        "selector": "n/a",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Map pan -> search recenter -> hint pill",
+        "issue": "Pan correctly fires GET /api/tools?lat=...&lng=...&radius_km=... (debounced ~350ms, verified ~700ms total). However, the hint pill that should appear AFTER pan never becomes visible because (1) it's tucked inside the map-render branch which is short-circuited when tools.length===0 and (2) even with non-empty results the pill DOM element rendered '0' on `locator.count()` in the split view (needs investigation — likely also because the second debounced response cleared `searchCenter.source` back to 'user' somehow OR because the request that returned non-empty data raced ahead of the one that did).",
+        "affected_selectors": ["[data-testid='map-search-hint']", "[data-testid='map-recenter-btn']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "verification_evidence": {
+    "backend_map_search_api": "PASS (4/4 new tests + 19/19 iter7/iter8 regression). lat=43.65 lng=-79.38 radius=50 → 15 Toronto tools. radius=5 → fewer than radius=200. lat=0 lng=-150 radius=5 → empty list. All tools within radius+tolerance.",
+    "ts_pages_smoke_test": "PASS — Login + 8 routes (/ /browse /ai /dashboard /profile/<id> /tools/<both> /tools/<rent> /messages) all render with body_len > 200 and ZERO PAGEERROR events.",
+    "profile_follow_btn": "PASS — Sara visiting /profile/user_b31feea69062 (Marcus): [data-testid=follow-owner-btn] visible, state='Following' (from prior iter8 test).",
+    "tool_detail_both": "PASS — /tools/tool_7b8aa9595321: booking-calendar, insurance-picker, buy-tool-btn all present.",
+    "tool_detail_rent": "PASS — /tools/tool_a3d28bcdfe07 loads without error.",
+    "dashboard_4_tabs": "PASS — tab-listings, tab-renter, tab-owner, tab-favorites all present.",
+    "admin_5_tabs": "PASS — admin-tab-users, admin-tab-tools, admin-tab-bookings, admin-tab-emails, admin-tab-reviews all present.",
+    "language_switcher": "PASS — English button visible on /browse; lang switcher present site-wide (re-tested in iter8).",
+    "map_pan_api_fires": "PASS — Drag of leaflet map fired GET /api/tools?lat=44.96&lng=-96.81&radius_km=50 within ~700ms (debounced as designed).",
+    "map_hint_pill_appears_after_pan": "FAIL — locator('[data-testid=map-search-hint]').count() returned 0 after both a large pan (270px) and a small pan (50px). Same for [data-testid=map-recenter-btn]. Root cause: empty results unmounts the entire view; even when results are non-empty the pill never showed in split view.",
+    "map_recenter_button": "NOT TESTABLE — pill never rendered so recenter could not be clicked."
+  },
+  "critical_code_review_comments": [
+    "Browse.tsx line 384-426: <MapSearchHint /> is conditionally rendered inside the 'view === map' and split branches; when tools.length===0 the empty-state branch wins and unmounts the hint. FIX: render the hint as a sibling of the conditional or move the empty-state into a side-panel within the split layout so the map stays mounted.",
+    "Browse.tsx handleMapMove (line 164-171): overwriting URL radius_km on every pan creates a feedback loop where the user-chosen radius can never persist after the first pan. Consider keeping the user's explicit slider value as source-of-truth.",
+    "MapView.tsx default zoom=11 is too zoomed-out for a wide viewport; combined with the 350ms debounce, even casual mouse-wheel scrolls or accidental drags reset the search to a faraway center. Consider zoom=13 or capping minZoom.",
+    "MoveListener fires on every moveend including programmatic setView() done by FitOnce — FitOnce sets `hasUserMovedRef=true` indirectly because movestart fires. Recommend guarding the moveend handler to skip programmatic moves (track in FitOnce via a flag, or check `e.originalEvent` before treating it as a user pan).",
+    "Browse.tsx line 196: `effectiveCenter` calculation good; but no debouncing on the tools fetch — a pan triggers two fetches (one when searchCenter updates, one when radiusKm updates from handleMapMove) because both setStates fire in the same render. Consider batching with useMemo or single setState update."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iteration9_map_search.py",
+    "/app/test_reports/pytest/iter9_map.xml"
+  ],
+  "action_items": [
+    "[HIGH] Fix MapSearchHint visibility: keep the map (and the hint pill) mounted regardless of whether the result list is empty. Either move the empty-state to be an overlay on top of the map, or render the hint as a sibling outside the tools.length conditional. Without this, the entire map-driven-search feature is unusable as soon as the user pans into a region with no tools — they cannot recover except by clicking 'Clear filters'.",
+    "[HIGH] Investigate why the hint pill ALSO doesn't render after a pan that keeps results non-empty (we saw 0 count on the locator). Likely the timing of setState batching means searchCenter.source flips to 'user' from the userLocation effect or something resets the state. Add a console.log inside MapSearchHint to confirm searchCenter values at render time.",
+    "[MEDIUM] Don't overwrite user's explicit radius_km slider value during pan. Either skip URL update if user has manually set radius, or remove the slider once pan-driven search is the dominant flow.",
+    "[LOW] Bump MapView default zoom from 11 to 13 (or cap minZoom) so panning is less coarse on wide viewports.",
+    "[LOW] Suppress programmatic moveend events fired by FitOnce so they don't bubble up and set searchCenter.source='map' unintentionally on first load."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration9_map_search.py (new — 4 regression tests for /api/tools lat/lng/radius_km combo)"
+  ],
+  "success_rate": {
+    "backend": "100% (23/23 — 4 new map-search tests + 14 iter7 + 5 iter8 + 1 skipped iter8 dedupe with no eligible booking)",
+    "frontend": "85% (TypeScript regression 100% — all 5 newly-typed pages + MapView render with 0 pageerrors; map-driven-search backend integration 100% — debounced API fires correctly; map-driven-search UI 0% — hint pill and recenter button never appear visible to the user)"
+  },
+  "test_credentials": "Used sara@toolshare.demo/demo1234 and admin@toolshare.demo/Admin1234! per /app/memory/test_credentials.md.",
+  "seed_data_creation": "None.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend map-search API at GET /api/tools?lat=..&lng=..&radius_km=.. is solid. The frontend feature has a structural JSX issue: hint pill (data-testid='map-search-hint') is nested inside the view-mode conditional that gets unmounted on empty results. Repro: open /browse with geolocation granted (Toronto coords); switch to map view; drag the map any distance — observe that no hint pill appears (regardless of whether results are empty or not). The Playwright test I used: page.context.grant_permissions(['geolocation']); page.context.set_geolocation({latitude:43.65,longitude:-79.38}); click view-map; drag .leaflet-container. The pan DOES fire GET /api/tools with new lat/lng/radius_km confirmed via page.on('request'). To retest after fix, verify (1) hint appears within 1s of pan, (2) hint stays visible even when tools.length===0, (3) clicking map-recenter-btn resets search to user's geolocation and removes the hint.",
+  "rca of the issue": "Root cause of the hint-pill bug is JSX structural: Browse.tsx renders MapSearchHint inside the `view === 'map'` (line 393) and split-view (line 423) branches of a `loading ? : tools.length===0 ? : view==='grid' ? : view==='map' ? : <splitView>` chain. When tools.length becomes 0 after a pan, the empty-state JSX (line 365) replaces the map entirely. Mitigation: lift MapSearchHint up so it renders as a sibling of the conditional (or move the empty-state rendering INSIDE the map's container, e.g., a centered overlay div on top of the leaflet map). Secondary issue: handleMapMove overwrites radius_km from the user's slider — should only derive viewport radius when the user hasn't set one."
+}

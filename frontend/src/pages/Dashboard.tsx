@@ -298,7 +298,7 @@ function EmptyState({ icon: Icon, title, cta, to }) {
   );
 }
 
-function BookingRow({ booking, role, onUpdateStatus }) {
+function BookingRow({ booking, role, onUpdateStatus }: { booking: any; role: string; onUpdateStatus?: (id: string, status: string) => void }) {
   const { t, i18n } = useTranslation();
   const statusColor = {
     pending: "bg-yellow-100 text-yellow-800",

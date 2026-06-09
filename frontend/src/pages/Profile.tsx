@@ -10,28 +10,34 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Star, ShieldCheck, MapPin, Calendar, UserPlus, UserCheck } from "lucide-react";
+import type { PublicUser, Tool, Review } from "@/types";
+import type { AxiosError } from "axios";
 
 export default function Profile() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const { t, i18n } = useTranslation();
   const { user: me } = useAuth();
-  const [user, setUser] = useState(null);
-  const [tools, setTools] = useState([]);
-  const [reviews, setReviews] = useState([]);
-  const [following, setFollowing] = useState(false);
-  const [followLoading, setFollowLoading] = useState(false);
+  const [user, setUser] = useState<PublicUser | null>(null);
+  const [tools, setTools] = useState<Tool[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [following, setFollowing] = useState<boolean>(false);
+  const [followLoading, setFollowLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    api.get(`/users/${id}`).then(r => setUser(r.data));
-    api.get(`/tools`, { params: { owner_id: id } }).then(r => setTools(r.data));
-    api.get(`/reviews`, { params: { user_id: id } }).then(r => setReviews(r.data));
+    if (!id) return;
+    api.get<PublicUser>(`/users/${id}`).then((r) => setUser(r.data));
+    api.get<Tool[]>(`/tools`, { params: { owner_id: id } }).then((r) => setTools(r.data));
+    api.get<Review[]>(`/reviews`, { params: { user_id: id } }).then((r) => setReviews(r.data));
     if (me && me.id !== id) {
-      api.get(`/follows/check/${id}`).then(r => setFollowing(r.data.following)).catch(() => {});
+      api.get<{ following: boolean }>(`/follows/check/${id}`)
+        .then((r) => setFollowing(r.data.following))
+        .catch(() => { /* ignore */ });
     }
   }, [id, me?.id]);
 
-  const toggleFollow = async () => {
+  const toggleFollow = async (): Promise<void> => {
     if (!me) { toast.error(t("profile.login_to_follow")); return; }
+    if (!id) return;
     setFollowLoading(true);
     try {
       if (following) {
@@ -43,15 +49,27 @@ export default function Profile() {
         setFollowing(true);
         toast.success(t("profile.followed"));
       }
-    } catch (e) {
+    } catch (err) {
+      const e = err as AxiosError<{ detail?: string }>;
       toast.error(e.response?.data?.detail || "Failed");
-    } finally { setFollowLoading(false); }
+    } finally {
+      setFollowLoading(false);
+    }
   };
 
-  if (!user) return (<div className="min-h-screen bg-brand-bg"><Header /><div className="p-16 text-center text-brand-muted">Loading…</div></div>);
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-brand-bg">
+        <Header />
+        <div className="p-16 text-center text-brand-muted">Loading…</div>
+      </div>
+    );
+  }
 
-  const initials = user.name?.split(" ").map(n => n[0]).slice(0, 2).join("");
-  const joined = user.created_at ? new Date(user.created_at).toLocaleDateString(i18n.language, { month: "long", year: "numeric" }) : "—";
+  const initials = user.name?.split(" ").map((n) => n[0]).slice(0, 2).join("");
+  const joined = user.created_at
+    ? new Date(user.created_at).toLocaleDateString(i18n.language, { month: "long", year: "numeric" })
+    : "—";
 
   return (
     <div className="min-h-screen bg-brand-bg">
@@ -75,7 +93,10 @@ export default function Profile() {
               {user.city && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {user.city}</span>}
               <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {t("profile.joined_in", { date: joined })}</span>
               {user.rating_count > 0 && (
-                <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-brand-secondary text-brand-secondary" /> {user.rating_avg.toFixed(1)} ({user.rating_count} {t("common.reviews_count")})</span>
+                <span className="flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 fill-brand-secondary text-brand-secondary" />
+                  {user.rating_avg.toFixed(1)} ({user.rating_count} {t("common.reviews_count")})
+                </span>
               )}
             </div>
             {user.bio && <p className="text-brand-muted mt-4 leading-relaxed">{user.bio}</p>}
@@ -99,12 +120,16 @@ export default function Profile() {
           )}
         </div>
 
-        <h2 className="font-heading text-2xl font-bold mb-4">{t("profile.tools", { name: user.name.split(" ")[0] })} ({tools.length})</h2>
+        <h2 className="font-heading text-2xl font-bold mb-4">
+          {t("profile.tools", { name: user.name.split(" ")[0] })} ({tools.length})
+        </h2>
         {tools.length === 0 ? (
-          <div className="bg-white border border-brand-border rounded-2xl p-12 text-center text-brand-muted">{t("profile.no_listings")}</div>
+          <div className="bg-white border border-brand-border rounded-2xl p-12 text-center text-brand-muted">
+            {t("profile.no_listings")}
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {tools.map(t => <ToolCard key={t.id} tool={t} />)}
+            {tools.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
           </div>
         )}
 
@@ -112,7 +137,7 @@ export default function Profile() {
           <>
             <h2 className="font-heading text-2xl font-bold mb-4">{t("tool.reviews")} ({reviews.length})</h2>
             <div className="space-y-3">
-              {reviews.map(r => (
+              {reviews.map((r) => (
                 <div key={r.id} className="bg-white border border-brand-border rounded-2xl p-5">
                   <div className="flex items-center gap-3 mb-2">
                     <Avatar className="h-8 w-8">
@@ -121,7 +146,9 @@ export default function Profile() {
                     </Avatar>
                     <div className="font-semibold text-sm">{r.reviewer?.name}</div>
                     <div className="flex ml-auto">
-                      {[1,2,3,4,5].map(i => <Star key={i} className={`w-3.5 h-3.5 ${i <= r.rating ? 'fill-brand-secondary text-brand-secondary' : 'text-brand-border'}`} />)}
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star key={i} className={`w-3.5 h-3.5 ${i <= r.rating ? "fill-brand-secondary text-brand-secondary" : "text-brand-border"}`} />
+                      ))}
                     </div>
                   </div>
                   <p className="text-sm text-brand-muted">{r.comment}</p>

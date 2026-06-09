@@ -22,17 +22,17 @@ export default function ToolDetail() {
   const { user } = useAuth();
   const [tool, setTool] = useState(null);
   const [reviews, setReviews] = useState([]);
-  const [activeImg, setActiveImg] = useState(0);
-  const [dateRange, setDateRange] = useState();
-  const [pickupMethod, setPickupMethod] = useState("pickup");
-  const [deliveryAddress, setDeliveryAddress] = useState("");
-  const [message, setMessage] = useState("");
-  const [favorite, setFavorite] = useState(false);
-  const [booking, setBooking] = useState(false);
-  const [insuranceTier, setInsuranceTier] = useState("none");
-  const [insuranceTiers, setInsuranceTiers] = useState({});
-  const [buying, setBuying] = useState(false);
-  const [unavailableDates, setUnavailableDates] = useState(new Set());
+  const [activeImg, setActiveImg] = useState<number>(0);
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | undefined>(undefined);
+  const [pickupMethod, setPickupMethod] = useState<string>("pickup");
+  const [deliveryAddress, setDeliveryAddress] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [favorite, setFavorite] = useState<boolean>(false);
+  const [booking, setBooking] = useState<boolean>(false);
+  const [insuranceTier, setInsuranceTier] = useState<string>("none");
+  const [insuranceTiers, setInsuranceTiers] = useState<Record<string, { daily_fee: number; label: string }>>({});
+  const [buying, setBuying] = useState<boolean>(false);
+  const [unavailableDates, setUnavailableDates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     api.get(`/tools/${id}`).then(r => setTool(r.data)).catch(() => toast.error("Tool not found"));
@@ -60,7 +60,7 @@ export default function ToolDetail() {
   }
 
   const days = dateRange?.from && dateRange?.to
-    ? Math.max(1, Math.round((dateRange.to - dateRange.from) / 86400000) + 1)
+    ? Math.max(1, Math.round((dateRange.to.getTime() - dateRange.from.getTime()) / 86400000) + 1)
     : 0;
   const total = days * tool.daily_price;
 
@@ -230,7 +230,7 @@ export default function ToolDetail() {
               </div>
             )}
             <div className="h-72 rounded-2xl overflow-hidden mb-8">
-              <MapView tools={[tool]} center={[tool.location.lat, tool.location.lng]} approximate={!!tool.location?.is_approximate} />
+              <MapView tools={[tool]} center={[tool.location.lat, tool.location.lng] as [number, number]} approximate={!!tool.location?.is_approximate} />
             </div>
 
             <h2 className="font-heading text-xl font-bold mb-3">{t("tool.reviews")} ({reviews.length})</h2>
@@ -274,8 +274,8 @@ export default function ToolDetail() {
                 <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("tool.rental_dates")}</Label>
                 <Calendar
                   mode="range"
-                  selected={dateRange}
-                  onSelect={setDateRange}
+                  selected={dateRange as any}
+                  onSelect={setDateRange as any}
                   disabled={(d) => {
                     if (d < new Date(new Date().setHours(0, 0, 0, 0))) return true;
                     const iso = d.toISOString().slice(0, 10);
