@@ -29,6 +29,7 @@ export default function BookingDetail() {
   const [draft, setDraft] = useState("");
   const [paying, setPaying] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [submittedTargets, setSubmittedTargets] = useState(new Set());
   const scrollRef = useRef(null);
 
   const fetchBooking = () => api.get(`/bookings/${id}`).then(r => setBooking(r.data));
@@ -36,11 +37,32 @@ export default function BookingDetail() {
     setMessages(r.data);
     setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }), 100);
   });
+  const fetchMyReviews = async () => {
+    if (!user || !booking) return;
+    try {
+      // pull all reviews on this tool and filter by me + this booking
+      const r = await api.get("/reviews", { params: { tool_id: booking.tool_id } });
+      const mine = (r.data || []).filter(rv => rv.booking_id === id && rv.reviewer_id === user.id);
+      // also need user-target reviews (renter/owner) — fetch by target_user_id
+      const targets = new Set(mine.map(rv => rv.target_type));
+      // Fetch user-targeted reviews for both renter & owner side
+      for (const uid of [booking.renter_id, booking.owner_id]) {
+        try {
+          const r2 = await api.get("/reviews", { params: { user_id: uid } });
+          (r2.data || []).forEach(rv => {
+            if (rv.booking_id === id && rv.reviewer_id === user.id) targets.add(rv.target_type);
+          });
+        } catch { /* ignore */ }
+      }
+      setSubmittedTargets(targets);
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => { fetchBooking(); }, [id]);
   useEffect(() => {
     if (!booking || !user) return;
     fetchMessages();
+    fetchMyReviews();
     const t = setInterval(fetchMessages, 6000);
     return () => clearInterval(t);
   }, [booking?.id, user?.id]);
@@ -102,7 +124,14 @@ export default function BookingDetail() {
       await api.post("/reviews", body);
       toast.success("Review submitted");
       setRating(0); setComment(""); setConditionTag("");
-    } catch (e) { toast.error(e.response?.data?.detail || "Failed"); }
+      setSubmittedTargets(prev => new Set([...prev, target_type]));
+    } catch (e) {
+      const detail = e.response?.data?.detail || "Failed";
+      toast.error(detail);
+      if (e.response?.status === 409) {
+        setSubmittedTargets(prev => new Set([...prev, target_type]));
+      }
+    }
     finally { setSubmitting(false); }
   };
 
@@ -142,6 +171,15 @@ export default function BookingDetail() {
 
   // Reviews are also unlocked once the rental window has ended (paid booking only)
   const canReviewExpanded = canReview || (messagingClosed && booking.paid);
+
+  // What review targets are still available for the current user?
+  const availableTargets = [];
+  if (isRenter) {
+    if (!submittedTargets.has("tool")) availableTargets.push("tool");
+    if (!submittedTargets.has("owner")) availableTargets.push("owner");
+  }
+  if (isOwner && !submittedTargets.has("renter")) availableTargets.push("renter");
+  const reviewSectionVisible = canReviewExpanded && availableTargets.length > 0;
 
   return (
     <div className="min-h-screen bg-brand-bg">
@@ -236,8 +274,8 @@ export default function BookingDetail() {
               </div>
             )}
 
-            {canReviewExpanded && (
-              <div className="bg-white border border-brand-border rounded-2xl p-6">
+            {reviewSectionVisible && (
+              <div className="bg-white border border-brand-border rounded-2xl p-6" data-testid="review-section">
                 <h3 className="font-heading text-xl font-bold mb-1">{t("booking.review_title")}</h3>
                 <p className="text-sm text-brand-muted mb-4">{t("booking.review_subtitle")}</p>
 
@@ -255,7 +293,7 @@ export default function BookingDetail() {
                   placeholder={t("booking.comment_ph")} className="rounded-xl mt-1 mb-4"
                   data-testid="review-comment" />
 
-                {isRenter && (
+                {isRenter && availableTargets.includes("tool") && (
                   <div className="mb-4">
                     <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("booking.condition_label")}</Label>
                     <div className="flex flex-wrap gap-2 mt-1.5" data-testid="condition-tag-group">
@@ -282,22 +320,30 @@ export default function BookingDetail() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  {isRenter && (
-                    <>
-                      <Button onClick={() => submitReview("tool")} disabled={submitting}
-                        data-testid="review-tool-btn"
-                        className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">{t("booking.review_tool")}</Button>
-                      <Button onClick={() => submitReview("owner")} disabled={submitting} variant="outline"
-                        data-testid="review-owner-btn" className="rounded-xl">{t("booking.review_owner")}</Button>
-                    </>
+                <div className="flex flex-wrap gap-2">
+                  {isRenter && availableTargets.includes("tool") && (
+                    <Button onClick={() => submitReview("tool")} disabled={submitting}
+                      data-testid="review-tool-btn"
+                      className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">{t("booking.review_tool")}</Button>
                   )}
-                  {isOwner && (
+                  {isRenter && availableTargets.includes("owner") && (
+                    <Button onClick={() => submitReview("owner")} disabled={submitting} variant="outline"
+                      data-testid="review-owner-btn" className="rounded-xl">{t("booking.review_owner")}</Button>
+                  )}
+                  {isOwner && availableTargets.includes("renter") && (
                     <Button onClick={() => submitReview("renter")} disabled={submitting}
                       data-testid="review-renter-btn"
                       className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">{t("booking.review_renter")}</Button>
                   )}
                 </div>
+
+                {submittedTargets.size > 0 && (
+                  <p className="text-xs text-brand-muted mt-4" data-testid="review-already-submitted">
+                    {t("booking.review_already")}
+                    {" "}
+                    {[...submittedTargets].map(tt => t(`booking.review_${tt}`)).join(", ")}
+                  </p>
+                )}
               </div>
             )}
           </div>

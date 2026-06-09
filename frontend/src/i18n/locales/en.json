@@ -275,7 +275,8 @@
     "condition_like_new": "Like new",
     "condition_good": "Good",
     "condition_fair": "Fair",
-    "condition_poor": "Poor"
+    "condition_poor": "Poor",
+    "review_already": "Already submitted:"
   },
   "messages_page": {
     "title": "Messages",

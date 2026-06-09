@@ -275,7 +275,8 @@
     "condition_like_new": "Comme neuf",
     "condition_good": "Bon",
     "condition_fair": "Correct",
-    "condition_poor": "Mauvais"
+    "condition_poor": "Mauvais",
+    "review_already": "Déjà envoyé :"
   },
   "messages_page": {
     "title": "Messages",

@@ -549,7 +549,7 @@ async def create_tool(payload: ToolIn, user: dict = Depends(current_user)):
                 await send_email_mocked(
                     follower["email"],
                     f"{user.get('name','An owner')} just listed: {doc['title']}",
-                    f"A tool you might like is now available on ToolShare. Open the app to view it.",
+                    "A tool you might like is now available on ToolShare. Open the app to view it.",
                     db=db,
                 )
     except Exception as e:
@@ -957,7 +957,7 @@ async def update_booking_status(booking_id: str, payload: BookingStatusIn, user:
                     await send_email_mocked(
                         subscriber["email"],
                         f"Now available: {tool.get('title','a saved tool')}",
-                        f"A tool you saved is available again. Open ToolShare to book it.",
+                        "A tool you saved is available again. Open ToolShare to book it.",
                         db=db,
                     )
         except Exception as e:
@@ -1064,6 +1064,14 @@ async def create_review(payload: ReviewIn, user: dict = Depends(current_user)):
         raise HTTPException(404, "Booking not found")
     if user["id"] not in (booking["renter_id"], booking["owner_id"]):
         raise HTTPException(403, "Forbidden")
+    # Prevent duplicate review for same (booking, reviewer, target_type)
+    dupe = await db.reviews.find_one({
+        "booking_id": payload.booking_id,
+        "reviewer_id": user["id"],
+        "target_type": payload.target_type,
+    })
+    if dupe:
+        raise HTTPException(409, "You already submitted this review")
     target_user_id = None
     if payload.target_type == "owner":
         target_user_id = booking["owner_id"]
@@ -1262,6 +1270,9 @@ async def on_startup():
     await db.sessions.create_index("session_token", unique=True)
     await db.favorites.create_index([("user_id", 1), ("tool_id", 1)], unique=True)
     await db.owner_follows.create_index([("user_id", 1), ("owner_id", 1)], unique=True)
+    await db.reviews.create_index(
+        [("booking_id", 1), ("reviewer_id", 1), ("target_type", 1)], unique=True
+    )
     await db.messages.create_index("booking_id")
     await db.messages.create_index("recipient_id")
     await db.payment_transactions.create_index("session_id", unique=True)
