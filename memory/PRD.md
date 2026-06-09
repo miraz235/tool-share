@@ -236,5 +236,12 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ i18n keys added (EN/FR/ES): `ai.quota_label`, `ai.quota_exceeded`, `ai.unlimited`, `ai.login_required_title/body`, `ai.sign_in_cta`, `list_tool.currency_label`, `list_tool.currency_hint`.
 - ✅ Verified live: anonymous shows login gate; logged-in shows 15/15 counter; backend quota endpoint returns correct counts; currency filter math correct.
 
+## 12l. Multi-region demo seed (2026-06-09)
+- ✅ `seed_demo.py` now creates **7 demo users across 6 cities** (Toronto, Mississauga, New York, London, Paris, Mexico City) and **17 demo tools spanning 5 currencies** (CAD, USD, EUR, GBP, MXN).
+- ✅ Each tool stamped with `price_currency` based on its city via the new `CITY_CURRENCY` map. Owners are city-matched so tools cluster naturally near their owner.
+- ✅ Localized titles for non-English cities (Échafaudage Pliant 2m, Taladro Inalámbrico DeWalt, Pulidora Bosch).
+- ✅ Verified live: in EUR view the Browse grid renders 19 cards with prices like "11 €/day (Toronto)", "13 €/day (Mexico City)", "7 €/day + 175 € to buy (London)" — cross-currency conversion working transparently.
+- ✅ Cleaned up 6 stale `TEST_iter*` tools from prior test runs.
+
 ## 13. Prioritized Backlog
 
