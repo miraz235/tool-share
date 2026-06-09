@@ -1,6 +1,7 @@
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { useEffect, useRef } from "react";
+import { useCurrency } from "@/lib/currency";
 
 interface MapTool {
   id: string;
@@ -19,10 +20,10 @@ interface MapViewProps {
 }
 
 // Build a small DivIcon with the price label
-function makePinIcon(price: number, active = false) {
+function makePinIcon(priceText: string, active = false) {
   return L.divIcon({
     className: "",
-    html: `<div class="tool-marker-pin ${active ? 'is-active' : ''}">$${price}</div>`,
+    html: `<div class="tool-marker-pin ${active ? 'is-active' : ''}">${priceText}</div>`,
     iconSize: [60, 28],
     iconAnchor: [30, 14],
   });
@@ -97,6 +98,7 @@ function MoveListener({ onCenterChange, hasUserMovedRef, programmaticMoveRef }: 
 }
 
 export default function MapView({ tools = [], center, onSelect, selectedId, approximate = false, onCenterChange }: MapViewProps) {
+  const { format } = useCurrency();
   const initialCenter: [number, number] = (center as [number, number])
     || (tools[0]?.location?.lat && tools[0]?.location?.lng
       ? [tools[0].location.lat, tools[0].location.lng]
@@ -138,14 +140,14 @@ export default function MapView({ tools = [], center, onSelect, selectedId, appr
           <Marker
             key={tl.id}
             position={[lat, lng]}
-            icon={makePinIcon(tl.daily_price, selectedId === tl.id)}
+            icon={makePinIcon(format(tl.daily_price), selectedId === tl.id)}
             eventHandlers={{ click: () => onSelect && onSelect(tl) }}
           >
             <Popup>
               <div style={{ minWidth: 160 }}>
                 <div style={{ fontWeight: 700, fontFamily: 'Manrope' }}>{tl.title}</div>
                 <div style={{ color: '#545C58', fontSize: 12 }}>{tl.location?.city}</div>
-                <div style={{ color: '#D36135', fontWeight: 700, marginTop: 4 }}>${tl.daily_price}/day</div>
+                <div style={{ color: '#D36135', fontWeight: 700, marginTop: 4 }}>{format(tl.daily_price)}/day</div>
                 <a href={`/tools/${tl.id}`} style={{ color: '#2D5A4C', fontSize: 12, fontWeight: 600 }}>View details →</a>
               </div>
             </Popup>

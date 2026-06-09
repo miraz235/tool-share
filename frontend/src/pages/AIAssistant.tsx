@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useCurrency } from "@/lib/currency";
 import Header from "@/components/Header";
 import { api, imageUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ const EXAMPLES_BY_LANG = {
 
 export default function AIAssistant() {
   const { t, i18n } = useTranslation();
+  const { format } = useCurrency();
   const EXAMPLES = EXAMPLES_BY_LANG[i18n.language?.split("-")[0]] || EXAMPLES_BY_LANG.en;
   const [task, setTask] = useState("");
   const [loading, setLoading] = useState(false);
@@ -161,7 +163,7 @@ export default function AIAssistant() {
                               </div>
                               <div className="min-w-0">
                                 <div className="font-semibold text-sm truncate">{l.title}</div>
-                                <div className="text-xs text-brand-muted">${l.daily_price}/{t("common.day")} · {l.location?.city}</div>
+                                <div className="text-xs text-brand-muted">{format(l.daily_price)}/{t("common.day")} · {l.location?.city}</div>
                               </div>
                             </Link>
                           ))}

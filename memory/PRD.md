@@ -216,5 +216,16 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ Catch-all `*` route → `NotFound` keeps Header (and currency switcher) mounted on unknown paths.
 - ✅ Tests: iter11 — backend FX rates 5/5; frontend currency switching, persistence, EUR conversion ($12 → 11 €), TS regression across all routes, map-search regression all pass.
 
+## 12j. Full currency formatting (2026-06-09)
+- ✅ Hard-coded `$` price displays replaced with `useCurrency().format()` across:
+  - **ToolDetail**: header daily-price, deposit, insurance daily-fee, rental subtotal, insurance subtotal, grand total, sale-price, purchase confirm dialog
+  - **BookingDetail**: header total + deposit, summary rental row + deposit row, grand total
+  - **Admin**: revenue stat card, owed/pending payouts (via i18n placeholder), bookings table total, tools table daily price
+  - **Dashboard**: BookingRow total
+  - **AIAssistant**: recommended-tool inline price
+  - **MapView**: marker pin label + popup daily price
+- ✅ i18n fix: removed hard-coded `$` prefix from `tool.deposit_refundable` and `admin.owed` in EN/FR/ES; values now pre-formatted via `format()` before being passed to `t()`.
+- ✅ Verified live: EUR mode shows "11 € / day · + 37 € refundable deposit · +7 €/day · +18 €/day" with zero hard-coded `$` price fields anywhere. (Insurance tier labels like "$1,000 coverage" remain — those are coverage caps, not display prices.)
+
 ## 13. Prioritized Backlog
 

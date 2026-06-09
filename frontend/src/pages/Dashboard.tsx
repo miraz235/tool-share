@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth";
+import { useCurrency } from "@/lib/currency";
 import { api, imageUrl } from "@/lib/api";
 import Header from "@/components/Header";
 import ToolCard from "@/components/ToolCard";
@@ -300,6 +301,7 @@ function EmptyState({ icon: Icon, title, cta, to }) {
 
 function BookingRow({ booking, role, onUpdateStatus }: { booking: any; role: string; onUpdateStatus?: (id: string, status: string) => void }) {
   const { t, i18n } = useTranslation();
+  const { format } = useCurrency();
   const statusColor = {
     pending: "bg-yellow-100 text-yellow-800",
     approved: "bg-green-100 text-green-800",
@@ -318,7 +320,7 @@ function BookingRow({ booking, role, onUpdateStatus }: { booking: any; role: str
           <Badge className={`${statusColor[booking.status]} border-0 capitalize`}>{booking.status}</Badge>
         </div>
         <div className="text-sm text-brand-muted">
-          {formatDateRange(booking.start_date, booking.end_date, i18n.language)} · ${booking.total_price} ·
+          {formatDateRange(booking.start_date, booking.end_date, i18n.language)} · {format(booking.total_price)} ·
           {role === "renter" ? ` ${t("common.from")} ${booking.counterparty?.name}` : ` ${t("common.for")} ${booking.counterparty?.name}`}
         </div>
       </div>

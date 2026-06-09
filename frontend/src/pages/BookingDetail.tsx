@@ -3,6 +3,7 @@ import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next";
 import { api, imageUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useCurrency } from "@/lib/currency";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ export default function BookingDetail() {
   const [search] = useSearchParams();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { format } = useCurrency();
   const nav = useNavigate();
   const [booking, setBooking] = useState(null);
   const [rating, setRating] = useState(0);
@@ -200,8 +202,8 @@ export default function BookingDetail() {
                 </div>
                 <div className="text-right">
                   <div className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("common.total")}</div>
-                  <div className="font-heading text-2xl font-extrabold text-brand-secondary">${booking.total_price}</div>
-                  {booking.deposit > 0 && <div className="text-xs text-brand-muted">+ ${booking.deposit} {t("common.deposit").toLowerCase()}</div>}
+                  <div className="font-heading text-2xl font-extrabold text-brand-secondary">{format(booking.total_price)}</div>
+                  {booking.deposit > 0 && <div className="text-xs text-brand-muted">+ {format(booking.deposit)} {t("common.deposit").toLowerCase()}</div>}
                 </div>
               </div>
 
@@ -259,9 +261,9 @@ export default function BookingDetail() {
                 <h3 className="font-heading text-xl font-bold mb-2">{t("booking.pay_title")}</h3>
                 <p className="text-sm text-brand-muted mb-4">{t("booking.pay_subtitle")}</p>
                 <div className="bg-brand-subtle rounded-xl p-4 mb-4 text-sm space-y-1">
-                  <div className="flex justify-between"><span>{t("booking.rental")}</span><span>${booking.total_price}</span></div>
-                  {booking.deposit > 0 && <div className="flex justify-between text-brand-muted"><span>{t("tool.deposit_label")}</span><span>${booking.deposit}</span></div>}
-                  <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>{t("common.total")}</span><span>${booking.total_price + booking.deposit}</span></div>
+                  <div className="flex justify-between"><span>{t("booking.rental")}</span><span>{format(booking.total_price)}</span></div>
+                  {booking.deposit > 0 && <div className="flex justify-between text-brand-muted"><span>{t("tool.deposit_label")}</span><span>{format(booking.deposit)}</span></div>}
+                  <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>{t("common.total")}</span><span>{format(booking.total_price + booking.deposit)}</span></div>
                 </div>
                 <Button onClick={pay} disabled={paying || polling}
                   data-testid="pay-btn"

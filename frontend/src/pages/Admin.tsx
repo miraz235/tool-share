@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useCurrency } from "@/lib/currency";
 import Header from "@/components/Header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { formatDateRange, formatDate, formatDateTime } from "@/lib/dateFormat";
 export default function Admin() {
   const { user, loading } = useAuth();
   const { t, i18n } = useTranslation();
+  const { format } = useCurrency();
   const nav = useNavigate();
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -93,7 +95,7 @@ export default function Admin() {
             <StatCard icon={Users} label={t("admin.users")} value={stats.users} sub={t("admin.verified", { count: stats.verified_users })} />
             <StatCard icon={Package} label={t("admin.listings")} value={stats.tools} />
             <StatCard icon={Calendar} label={t("admin.bookings")} value={stats.bookings_total} sub={t("admin.approved", { count: stats.approved_bookings })} />
-            <StatCard icon={DollarSign} label={t("admin.revenue")} value={`$${stats.revenue}`} sub={t("admin.owed", { value: stats.pending_payouts })} />
+            <StatCard icon={DollarSign} label={t("admin.revenue")} value={format(stats.revenue)} sub={t("admin.owed", { value: format(stats.pending_payouts) })} />
           </div>
         )}
 
@@ -186,7 +188,7 @@ export default function Admin() {
                       <td className="p-3 text-brand-muted">{b.renter_name}</td>
                       <td className="p-3 text-brand-muted">{b.owner_name}</td>
                       <td className="p-3 text-xs text-brand-muted">{formatDateRange(b.start_date, b.end_date, i18n.language)}</td>
-                      <td className="p-3 font-semibold">${b.total_price}</td>
+                      <td className="p-3 font-semibold">{format(b.total_price)}</td>
                       <td className="p-3"><Badge className={`${statusColor[b.status]} border-0 capitalize`}>{b.status}</Badge></td>
                       <td className="p-3">{b.paid ? "✅" : "—"}</td>
                       <td className="p-3">
@@ -224,7 +226,7 @@ export default function Admin() {
                       <td className="p-3"><Link to={`/tools/${tool.id}`} className="hover:underline font-semibold">{tool.title}</Link></td>
                       <td className="p-3 text-brand-muted capitalize">{tool.category.replace('-', ' ')}</td>
                       <td className="p-3 text-brand-muted">{tool.location?.city}</td>
-                      <td className="p-3 font-semibold">${tool.daily_price}/d</td>
+                      <td className="p-3 font-semibold">{format(tool.daily_price)}/d</td>
                       <td className="p-3 text-brand-muted">{tool.view_count}</td>
                       <td className="p-3">{tool.rating_count > 0 ? `${tool.rating_avg.toFixed(1)} (${tool.rating_count})` : "—"}</td>
                       <td className="p-3">

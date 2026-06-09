@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { api, imageUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useCurrency } from "@/lib/currency";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import MapView from "@/components/MapView";
@@ -20,6 +21,7 @@ export default function ToolDetail() {
   const { t } = useTranslation();
   const nav = useNavigate();
   const { user } = useAuth();
+  const { format } = useCurrency();
   const [tool, setTool] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [activeImg, setActiveImg] = useState<number>(0);
@@ -92,7 +94,7 @@ export default function ToolDetail() {
 
   const submitBuy = async () => {
     if (!user) { nav("/login"); return; }
-    if (!window.confirm(`Confirm purchase for $${tool.sale_price}?`)) return;
+    if (!window.confirm(`Confirm purchase for ${format(tool.sale_price)}?`)) return;
     setBuying(true);
     try {
       const r = await api.post("/purchases", null, { params: { tool_id: tool.id } });
@@ -263,11 +265,11 @@ export default function ToolDetail() {
           <div>
             <div className="sticky top-24 bg-white border border-brand-border rounded-2xl p-6 shadow-sm">
               <div className="flex items-baseline gap-1 mb-1">
-                <span className="font-heading text-3xl font-extrabold text-brand-secondary">${tool.daily_price}</span>
+                <span className="font-heading text-3xl font-extrabold text-brand-secondary">{format(tool.daily_price)}</span>
                 <span className="text-brand-muted text-sm">{t("common.per_day")}</span>
               </div>
               {tool.security_deposit > 0 && (
-                <div className="text-xs text-brand-muted mb-4">{t("tool.deposit_refundable", { value: tool.security_deposit })}</div>
+                <div className="text-xs text-brand-muted mb-4">{t("tool.deposit_refundable", { value: format(tool.security_deposit) })}</div>
               )}
 
               <div className="border border-brand-border rounded-xl p-3 mb-4">
@@ -326,13 +328,13 @@ export default function ToolDetail() {
 
               {days > 0 && (
                 <div className="bg-brand-subtle rounded-xl p-4 mb-4 text-sm space-y-1">
-                  <div className="flex justify-between"><span>${tool.daily_price} × {days} {days > 1 ? t("common.days") : t("common.day")}</span><span>${total}</span></div>
+                  <div className="flex justify-between"><span>{format(tool.daily_price)} × {days} {days > 1 ? t("common.days") : t("common.day")}</span><span>{format(total)}</span></div>
                   {insuranceTier !== "none" && insuranceTiers[insuranceTier] && (
-                    <div className="flex justify-between text-brand-muted"><span>{t("tool.protection")} × {days}</span><span>${(insuranceTiers[insuranceTier].daily_fee * days).toFixed(2)}</span></div>
+                    <div className="flex justify-between text-brand-muted"><span>{t("tool.protection")} × {days}</span><span>{format(insuranceTiers[insuranceTier].daily_fee * days)}</span></div>
                   )}
-                  {tool.security_deposit > 0 && <div className="flex justify-between text-brand-muted"><span>{t("tool.deposit_label")}</span><span>${tool.security_deposit}</span></div>}
+                  {tool.security_deposit > 0 && <div className="flex justify-between text-brand-muted"><span>{t("tool.deposit_label")}</span><span>{format(tool.security_deposit)}</span></div>}
                   <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>{t("common.total")}</span>
-                    <span>${(total + (insuranceTiers[insuranceTier]?.daily_fee || 0) * days + (tool.security_deposit || 0)).toFixed(2)}</span>
+                    <span>{format(total + (insuranceTiers[insuranceTier]?.daily_fee || 0) * days + (tool.security_deposit || 0))}</span>
                   </div>
                 </div>
               )}
@@ -351,7 +353,7 @@ export default function ToolDetail() {
                             onChange={() => setInsuranceTier(key)} className="sr-only" />
                           <div className="text-sm font-semibold">{val.label}</div>
                         </div>
-                        <div className="text-xs font-bold text-brand-secondary">{val.daily_fee > 0 ? `+$${val.daily_fee}/${t("common.day")}` : t("common.free")}</div>
+                        <div className="text-xs font-bold text-brand-secondary">{val.daily_fee > 0 ? `+${format(val.daily_fee)}/${t("common.day")}` : t("common.free")}</div>
                       </label>
                     ))}
                   </div>
@@ -369,7 +371,7 @@ export default function ToolDetail() {
                 <div className="border-t border-brand-border mt-4 pt-4">
                   <div className="flex items-baseline justify-between mb-2">
                     <span className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("tool.buy_outright")}</span>
-                    <span className="font-heading text-2xl font-extrabold text-brand-primary">${tool.sale_price}</span>
+                    <span className="font-heading text-2xl font-extrabold text-brand-primary">{format(tool.sale_price)}</span>
                   </div>
                   <Button onClick={submitBuy} disabled={buying} variant="outline"
                     data-testid="buy-tool-btn"
