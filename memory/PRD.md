@@ -182,8 +182,21 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ Admin: `/api/admin/reviews` list + `PUT /api/admin/reviews/{id}/hide` toggle; Reviews tab on Admin page with hide/unhide
 - ✅ Tests: 14/14 backend pytest (iteration_7); all UI flows verified across EN/FR/ES
 
+## 12f. Review dedupe (2026-06-09)
+- ✅ Backend: unique index on `db.reviews` (booking_id, reviewer_id, target_type); explicit pre-insert check returning 409 with friendly message
+- ✅ Frontend BookingDetail: fetches existing reviews on mount; hides submit buttons for already-reviewed targets; shows "Already submitted: …" hint; locks button on 409 (defense in depth)
+- ✅ i18n: `booking.review_already` in EN/FR/ES
+- ✅ Verified live: 1st = 200, 2nd same target = 409, different target = 200
+
+## 12g. TypeScript migration — pragmatic hybrid (2026-06-09)
+- ✅ tsconfig.json (`allowJs: true`, `strict: false`, `paths: { "@/*": ["*"] }`, `jsx: "react-jsx"`)
+- ✅ `src/types/index.ts` — central domain types (User/AuthUser/Tool/Booking/Review/Purchase/Message/InsuranceTiers/AdminStats etc.)
+- ✅ `src/globals.d.ts` — ambient process.env + module shims for remaining .jsx pages
+- ✅ Fully typed core: `lib/api.ts`, `lib/auth.tsx`, `lib/dateFormat.ts`, `App.tsx`
+- ✅ Fully typed page: `pages/Browse.tsx` (consumes `Tool`, `ListingType` from `@/types`)
+- ✅ Fully typed shadcn primitives: `components/ui/button.tsx`, `components/ui/input.tsx`
+- ✅ Other pages remain `.jsx` and compile via `allowJs` — gradual migration path preserved
+- ✅ Tests: iter8 — frontend 100% (all 5 public routes + auth + 4 dashboard tabs + Browse filters/view modes + ToolDetail buy + Admin 5 tabs + EN/FR/ES translations); backend 19/19 (iter7 + iter8 regression)
+
 ## 13. Prioritized Backlog
-- **P0 (done)**: Auth, listings + images, map search, AI assistant, bookings, reviews, favorites
-- **P1 (done)**: Stripe Connect, in-app messaging, email notifications (mocked), admin dashboard, identity verification (mocked), buy/sell, insurance plans, featured listings, owner follows + availability alerts, review moderation + condition tags
-- **P2**: Real Resend email integration, real Stripe Identity verification (currently mocked toggle), PayPal payouts, native mobile apps, server.py refactor into /routes modules
 

@@ -8,3 +8,19 @@ declare namespace NodeJS {
     NODE_ENV: "development" | "production" | "test";
   }
 }
+
+// Shims for remaining .jsx page modules until they're migrated to .tsx.
+// These keep `import X from "@/pages/X"` from raising TS2307 in the dev console
+// while still letting babel-loader / webpack resolve the actual .jsx implementation.
+declare module "@/pages/Profile";
+declare module "@/pages/BookingDetail";
+declare module "@/pages/Admin";
+declare module "@/pages/Dashboard";
+declare module "@/pages/ToolDetail";
+declare module "@/pages/Landing";
+declare module "@/pages/ListTool";
+declare module "@/pages/Login";
+declare module "@/pages/Register";
+declare module "@/pages/AIAssistant";
+declare module "@/pages/Messages";
+
