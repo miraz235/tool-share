@@ -130,6 +130,16 @@ export default function BookingDetail() {
   const canPay = isRenter && booking.status === "approved" && !booking.paid;
   const canReview = booking.status === "completed" || (booking.status === "approved" && booking.paid);
 
+  // Messaging closes the day after the rental end_date
+  let messagingClosed = false;
+  try {
+    const end = new Date(`${booking.end_date}T23:59:59`);
+    messagingClosed = new Date() > end;
+  } catch (e) { /* ignore */ }
+
+  // Reviews are also unlocked once the rental window has ended (paid booking only)
+  const canReviewExpanded = canReview || (messagingClosed && booking.paid);
+
   return (
     <div className="min-h-screen bg-brand-bg">
       <Header />
@@ -223,7 +233,7 @@ export default function BookingDetail() {
               </div>
             )}
 
-            {canReview && (
+            {canReviewExpanded && (
               <div className="bg-white border border-brand-border rounded-2xl p-6">
                 <h3 className="font-heading text-xl font-bold mb-1">{t("booking.review_title")}</h3>
                 <p className="text-sm text-brand-muted mb-4">{t("booking.review_subtitle")}</p>
@@ -285,16 +295,24 @@ export default function BookingDetail() {
                 })}
               </div>
               <div className="border-t border-brand-border p-3 flex gap-2">
-                <Input value={draft} onChange={e => setDraft(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
-                  placeholder={t("booking.type_message")}
-                  data-testid="booking-message-input"
-                  className="rounded-xl flex-1" />
-                <Button onClick={sendMessage} disabled={!draft.trim()}
-                  data-testid="booking-message-send"
-                  className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">
-                  <Send className="w-4 h-4" />
-                </Button>
+                {messagingClosed ? (
+                  <div className="flex-1 text-xs text-brand-muted text-center py-2" data-testid="messaging-closed-notice">
+                    🔒 {t("booking.messaging_closed")}
+                  </div>
+                ) : (
+                  <>
+                    <Input value={draft} onChange={e => setDraft(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
+                      placeholder={t("booking.type_message")}
+                      data-testid="booking-message-input"
+                      className="rounded-xl flex-1" />
+                    <Button onClick={sendMessage} disabled={!draft.trim()}
+                      data-testid="booking-message-send"
+                      className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl">
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -585,16 +585,85 @@ async def list_tools(
     return tools
 
 
+def _obfuscate_location(loc: dict) -> dict:
+    """Hide precise address and round coords to ~1km accuracy for unpaid viewers."""
+    if not loc:
+        return loc
+    lat = loc.get("lat")
+    lng = loc.get("lng")
+    # Round to 2 decimals = ~1.1km accuracy. Deterministic per tool (no random jitter).
+    safe_lat = round(lat, 2) if lat is not None else None
+    safe_lng = round(lng, 2) if lng is not None else None
+    return {
+        "city": loc.get("city"),
+        "lat": safe_lat,
+        "lng": safe_lng,
+        "address": None,
+        "postal_code": None,
+        "is_approximate": True,
+    }
+
+
+async def _user_has_paid_booking(user_id: str, tool_id: str) -> bool:
+    booking = await db.bookings.find_one({
+        "tool_id": tool_id,
+        "renter_id": user_id,
+        "paid": True,
+        "status": {"$in": ["approved", "completed"]},
+    })
+    return booking is not None
+
+
 @api.get("/tools/{tool_id}")
-async def get_tool(tool_id: str):
+async def get_tool(tool_id: str, request: Request, authorization: Optional[str] = Header(None)):
     tool = await db.tools.find_one({"id": tool_id}, {"_id": 0})
     if not tool:
         raise HTTPException(404, "Tool not found")
     await db.tools.update_one({"id": tool_id}, {"$inc": {"view_count": 1}})
+
+    # Determine viewer
+    viewer = await optional_user(request, authorization)
+    is_owner = viewer and viewer["id"] == tool["owner_id"]
+    has_paid = viewer and await _user_has_paid_booking(viewer["id"], tool_id)
+    # Hide precise location unless owner or paid renter
+    if not is_owner and not has_paid:
+        tool["location"] = _obfuscate_location(tool.get("location", {}))
+    else:
+        tool["location"] = {**tool.get("location", {}), "is_approximate": False}
+
     # attach owner
     owner = await get_user_by_id(tool["owner_id"])
     tool["owner"] = serialize_user(owner) if owner else None
     return tool
+
+
+@api.get("/tools/{tool_id}/unavailable_dates")
+async def get_unavailable_dates(tool_id: str):
+    """Return a list of ISO date strings that are blocked due to existing bookings.
+
+    Includes any approved or paid (regardless of pending) range, plus tool.unavailable_dates.
+    """
+    tool = await db.tools.find_one({"id": tool_id}, {"_id": 0, "unavailable_dates": 1})
+    if not tool:
+        raise HTTPException(404, "Tool not found")
+
+    bookings = await db.bookings.find(
+        {"tool_id": tool_id, "status": {"$in": ["approved", "completed"]}},
+        {"_id": 0, "start_date": 1, "end_date": 1}
+    ).to_list(length=500)
+
+    blocked = set(tool.get("unavailable_dates", []) or [])
+    for b in bookings:
+        try:
+            s = datetime.fromisoformat(b["start_date"]).date()
+            e = datetime.fromisoformat(b["end_date"]).date()
+        except Exception:
+            continue
+        cur = s
+        while cur <= e:
+            blocked.add(cur.isoformat())
+            cur = cur + timedelta(days=1)
+    return {"dates": sorted(blocked)}
 
 
 @api.put("/tools/{tool_id}")

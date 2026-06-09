@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useEffect } from "react";
 
@@ -29,7 +29,7 @@ function FitToBounds({ tools, center }) {
   return null;
 }
 
-export default function MapView({ tools = [], center, onSelect, selectedId }) {
+export default function MapView({ tools = [], center, onSelect, selectedId, approximate = false }) {
   const initialCenter = center || (tools[0]?.location ? [tools[0].location.lat, tools[0].location.lng] : [43.6532, -79.3832]);
 
   return (
@@ -49,6 +49,18 @@ export default function MapView({ tools = [], center, onSelect, selectedId }) {
         const lat = t.location?.lat;
         const lng = t.location?.lng;
         if (!lat || !lng) return null;
+        // Use approximate-mode circle (no exact pin) when location is obfuscated
+        const isApprox = approximate || t.location?.is_approximate;
+        if (isApprox) {
+          return (
+            <Circle
+              key={t.id}
+              center={[lat, lng]}
+              radius={1500}
+              pathOptions={{ color: "#D36135", fillColor: "#D36135", fillOpacity: 0.18, weight: 2 }}
+            />
+          );
+        }
         return (
           <Marker
             key={t.id}

@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, MapPin, Heart, Calendar as CalIcon, Package, Truck, ShieldCheck } from "lucide-react";
+import { Star, MapPin, Heart, Calendar as CalIcon, Package, Truck, ShieldCheck, Lock } from "lucide-react";
 
 export default function ToolDetail() {
   const { id } = useParams();
@@ -29,10 +29,14 @@ export default function ToolDetail() {
   const [message, setMessage] = useState("");
   const [favorite, setFavorite] = useState(false);
   const [booking, setBooking] = useState(false);
+  const [unavailableDates, setUnavailableDates] = useState(new Set());
 
   useEffect(() => {
     api.get(`/tools/${id}`).then(r => setTool(r.data)).catch(() => toast.error("Tool not found"));
     api.get(`/reviews`, { params: { tool_id: id } }).then(r => setReviews(r.data)).catch(() => {});
+    api.get(`/tools/${id}/unavailable_dates`).then(r => {
+      setUnavailableDates(new Set(r.data.dates || []));
+    }).catch(() => {});
   }, [id]);
 
   useEffect(() => {
@@ -117,7 +121,7 @@ export default function ToolDetail() {
                   <span>({tool.rating_count})</span>
                 </span>
               )}
-              <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {tool.location.city}{tool.location.postal_code ? `, ${tool.location.postal_code}` : ''}</span>
+              <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {tool.location.city}{!tool.location?.is_approximate && tool.location.postal_code ? `, ${tool.location.postal_code}` : ''}</span>
               <span className="capitalize">· {tool.condition}</span>
             </div>
           </div>
@@ -185,8 +189,28 @@ export default function ToolDetail() {
             </div>
 
             <h2 className="font-heading text-xl font-bold mb-3">{t("tool.location")}</h2>
+            {tool.location?.is_approximate && (
+              <div className="bg-brand-secondary/10 border border-brand-secondary/30 rounded-xl p-3 mb-3 flex items-start gap-3" data-testid="approximate-location-notice">
+                <Lock className="w-4 h-4 text-brand-secondary mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-sm font-semibold text-brand-text">{t("tool.approximate_location")}</div>
+                  <div className="text-xs text-brand-muted">{t("tool.exact_location_note")}</div>
+                </div>
+              </div>
+            )}
+            {!tool.location?.is_approximate && (tool.location?.address || tool.location?.postal_code) && (
+              <div className="bg-brand-primary/5 border border-brand-primary/20 rounded-xl p-3 mb-3 flex items-start gap-3" data-testid="exact-location-revealed">
+                <ShieldCheck className="w-4 h-4 text-brand-primary mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-sm font-semibold text-brand-text">{t("tool.exact_revealed")}</div>
+                  <div className="text-xs text-brand-muted">
+                    {[tool.location?.address, tool.location?.city, tool.location?.postal_code].filter(Boolean).join(", ")}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="h-72 rounded-2xl overflow-hidden mb-8">
-              <MapView tools={[tool]} center={[tool.location.lat, tool.location.lng]} />
+              <MapView tools={[tool]} center={[tool.location.lat, tool.location.lng]} approximate={!!tool.location?.is_approximate} />
             </div>
 
             <h2 className="font-heading text-xl font-bold mb-3">{t("tool.reviews")} ({reviews.length})</h2>
@@ -232,7 +256,13 @@ export default function ToolDetail() {
                   mode="range"
                   selected={dateRange}
                   onSelect={setDateRange}
-                  disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
+                  disabled={(d) => {
+                    if (d < new Date(new Date().setHours(0, 0, 0, 0))) return true;
+                    const iso = d.toISOString().slice(0, 10);
+                    return unavailableDates.has(iso);
+                  }}
+                  modifiers={{ booked: (d) => unavailableDates.has(d.toISOString().slice(0, 10)) }}
+                  modifiersClassNames={{ booked: "line-through opacity-50" }}
                   className="mt-2"
                   data-testid="booking-calendar"
                 />

@@ -107,6 +107,15 @@ def build_p1_router(db, current_user_dep, get_user_by_id) -> APIRouter:
             raise HTTPException(404, "Booking not found")
         if user["id"] not in (booking["renter_id"], booking["owner_id"]):
             raise HTTPException(403, "Not a participant")
+        # Lock the chat once the rental end date has passed
+        try:
+            end = datetime.fromisoformat(booking["end_date"]).date()
+            if date.today() > end:
+                raise HTTPException(403, "Messaging is closed for ended bookings")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
         recipient_id = booking["owner_id"] if user["id"] == booking["renter_id"] else booking["renter_id"]
         msg = {
             "id": f"msg_{uuid.uuid4().hex[:12]}",
