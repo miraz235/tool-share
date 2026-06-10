@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import Header from "@/components/Header";
 import ToolCard from "@/components/ToolCard";
 import MapView from "@/components/MapView";
-import { api } from "@/lib/api";
+import { useCategories, useTools } from "@/lib/queries";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -96,14 +96,41 @@ export default function Browse() {
   const { currency: viewerCurrency } = useCurrency();
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
-  const [tools, setTools] = useState<Tool[]>([]);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
   const [view, setView] = useState<"split" | "grid" | "map">("split");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserCoords | null>(null);
   const [geoLoading, setGeoLoading] = useState<boolean>(false);
   const [searchCenter, setSearchCenter] = useState<SearchCenter | null>(null);
+
+  // Query hooks for categories and tools
+  const { data: categoriesData = [] } = useCategories();
+  const q = params.get("q") || "";
+  const category = params.get("category") || "all";
+  const city = params.get("city") || "";
+  const listingType = (params.get("listing_type") || "all") as ListingTypeFilter;
+  const [maxPriceUI, setMaxPriceUI] = useState<number>(
+    parseInt(params.get("max_price") || String(MAX_PRICE), 10)
+  );
+  const [radiusUI, setRadiusUI] = useState<number>(
+    parseInt(params.get("radius_km") || String(DEFAULT_RADIUS), 10)
+  );
+  const maxPrice = parseInt(params.get("max_price") || String(MAX_PRICE), 10);
+  const radiusKm = parseInt(params.get("radius_km") || String(DEFAULT_RADIUS), 10);
+
+  // Build tool search params based on URL and location state
+  const toolSearchParams = {
+    q: q || undefined,
+    category: category !== "all" ? category : undefined,
+    city: city || undefined,
+    listing_type: listingType !== "all" ? listingType : undefined,
+    max_price: maxPrice < MAX_PRICE ? maxPrice : undefined,
+    viewer_currency: maxPrice < MAX_PRICE ? viewerCurrency : undefined,
+    lat: (searchCenter ?? (userLocation ? { ...userLocation, source: "user" as const } : null))?.lat,
+    lng: (searchCenter ?? (userLocation ? { ...userLocation, source: "user" as const } : null))?.lng,
+    radius_km: (searchCenter ?? (userLocation ? { ...userLocation, source: "user" as const } : null)) ? radiusKm : undefined,
+  };
+
+  const { data: toolsData = [], isLoading } = useTools(toolSearchParams);
 
   // On mount: if URL has no filter params, hydrate from localStorage
   useEffect(() => {
@@ -184,35 +211,6 @@ export default function Browse() {
     }
   };
 
-  useEffect(() => {
-    api.get<CategoryItem[]>("/categories")
-      .then((r) => setCategories(r.data))
-      .catch(() => { /* ignore */ });
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    const queryParams: Record<string, string | number> = {};
-    if (q) queryParams.q = q;
-    if (category && category !== "all") queryParams.category = category;
-    if (city) queryParams.city = city;
-    if (listingType && listingType !== "all") queryParams.listing_type = listingType;
-    if (maxPrice && maxPrice < MAX_PRICE) {
-      queryParams.max_price = maxPrice;
-      queryParams.viewer_currency = viewerCurrency;
-    }
-    // Prefer the user-driven map center when present; otherwise fall back to device geolocation
-    const effectiveCenter = searchCenter ?? (userLocation ? { ...userLocation, source: "user" as const } : null);
-    if (effectiveCenter) {
-      queryParams.lat = effectiveCenter.lat;
-      queryParams.lng = effectiveCenter.lng;
-      queryParams.radius_km = radiusKm;
-    }
-    api.get<Tool[]>("/tools", { params: queryParams })
-      .then((r) => setTools(r.data))
-      .finally(() => setLoading(false));
-  }, [q, category, city, listingType, maxPrice, radiusKm, userLocation, searchCenter, viewerCurrency]);
-
   const updateParam = (k: string, v: string) => {
     const p = new URLSearchParams(params);
     if (v && v !== "all") p.set(k, v); else p.delete(k);
@@ -263,7 +261,7 @@ export default function Browse() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("common.all_categories")}</SelectItem>
-              {categories.map((c) => (
+              {categoriesData.map((c) => (
                 <SelectItem key={c.slug} value={c.slug}>{t(`categories.${c.slug}`, c.name)}</SelectItem>
               ))}
             </SelectContent>
@@ -368,10 +366,10 @@ export default function Browse() {
       </div>
 
       <div className="max-w-[1600px] mx-auto">
-        {loading && view === "grid" ? (
+        {isLoading && view === "grid" ? (
           <div className="p-16 text-center text-brand-muted" data-testid="browse-loading">{t("common.loading")}</div>
         ) : view === "grid" ? (
-          tools.length === 0 ? (
+          toolsData.length === 0 ? (
             <div className="p-16 text-center" data-testid="browse-empty">
               <div className="font-heading text-2xl font-bold mb-2">{t("browse.no_tools_found")}</div>
               <p className="text-brand-muted mb-6">{t("browse.no_tools_subtitle")}</p>
@@ -383,19 +381,19 @@ export default function Browse() {
           ) : (
             <div className="px-6 py-8">
               <div className="mb-4 text-sm text-brand-muted">
-                {tools.length === 1
-                  ? t("browse.tools_available_one", { count: tools.length })
-                  : t("browse.tools_available_other", { count: tools.length })}
+                {toolsData.length === 1
+                  ? t("browse.tools_available_one", { count: toolsData.length })
+                  : t("browse.tools_available_other", { count: toolsData.length })}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {tools.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
+                {toolsData.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
               </div>
             </div>
           )
         ) : view === "map" ? (
           <div className="h-[calc(100vh-160px)] p-4 relative">
             <MapView
-              tools={tools}
+              tools={toolsData}
               center={mapCenter}
               onSelect={(tool: Tool) => nav(`/tools/${tool.id}`)}
               selectedId={selectedId}

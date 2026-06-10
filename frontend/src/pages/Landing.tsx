@@ -1,10 +1,10 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ToolCard from "@/components/ToolCard";
-import { api } from "@/lib/api";
+import { useCategories, useTools } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, MapPin, Sparkles, ShieldCheck, Calendar, Wrench, Hammer, Drill, Sprout, Trees, PaintRoller, Pipette, Car, Zap, SprayCan, MoveVertical, Truck, Tent, ArrowRight } from "lucide-react";
@@ -14,15 +14,12 @@ const ICONS = { Drill, Wrench, Sprout, Trees, PaintRoller, Pipette, Car, Hammer,
 export default function Landing() {
   const { t } = useTranslation();
   const nav = useNavigate();
-  const [categories, setCategories] = useState([]);
-  const [featured, setFeatured] = useState([]);
   const [q, setQ] = useState("");
   const [city, setCity] = useState("");
-
-  useEffect(() => {
-    api.get("/categories").then(r => setCategories(r.data)).catch(() => {});
-    api.get("/tools", { params: { limit: 8 } }).then(r => setFeatured(r.data)).catch(() => {});
-  }, []);
+  const categoriesQuery = useCategories();
+  const featuredQuery = useTools({ limit: 8 });
+  const categories = categoriesQuery.data ?? [];
+  const featured = featuredQuery.data ?? [];
 
   const doSearch = (e) => {
     e?.preventDefault();

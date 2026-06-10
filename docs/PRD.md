@@ -30,27 +30,37 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 
 ### users
 ```
-{ id, email (unique), password_hash (nullable for OAuth), name, picture, bio, city, auth_provider, rating_avg, rating_count, is_verified, created_at }
+{ id, email (unique), password_hash (nullable for OAuth), name, picture, bio, city, auth_provider, rating_avg, rating_count, is_verified, is_admin, is_suspended, created_at, updated_at }
 ```
 
 ### tools
 ```
-{ id, owner_id, title, description, category, daily_price, security_deposit, condition, images[], location: {address, city, postal_code, lat, lng}, pickup_available, delivery_available, delivery_radius_km, unavailable_dates[], is_available, view_count, rating_avg, rating_count, created_at }
+{ id, owner_id, title, description, category, daily_price, security_deposit, condition, images[], location: {address, city, postal_code, lat, lng}, pickup_available, delivery_available, delivery_radius_km, unavailable_dates[], listing_type, sale_price, price_currency, is_available, is_sold, is_featured, view_count, rating_avg, rating_count, created_at, updated_at }
 ```
 
 ### bookings
 ```
-{ id, tool_id, renter_id, owner_id, start_date, end_date, total_price, deposit, status, pickup_method, delivery_address, message_to_owner, created_at, updated_at }
+{ id, tool_id, renter_id, owner_id, start_date, end_date, total_price, deposit, insurance_tier, insurance_fee, status, pickup_method, delivery_address, message_to_owner, paid, created_at, updated_at }
 ```
 
 ### reviews
 ```
-{ id, booking_id, tool_id, reviewer_id, target_user_id, target_type, rating, comment, created_at }
+{ id, booking_id, tool_id, reviewer_id, target_user_id, target_type, rating, comment, condition_tag, hidden, created_at, updated_at }
 ```
 
 ### favorites
 ```
-{ id, user_id, tool_id, created_at }
+{ id, user_id, tool_id, alerts_on, created_at }
+```
+
+### owner_follows
+```
+{ id, user_id, owner_id, created_at }
+```
+
+### purchases
+```
+{ id, tool_id, buyer_id, owner_id, amount, paid, status, created_at }
 ```
 
 ### sessions (Google OAuth)
@@ -74,9 +84,11 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 | PUT | `/auth/profile` | Update profile |
 | GET | `/categories` | Tool categories |
 | GET | `/tools` | List/filter tools |
-| POST | `/tools` | Create tool (auth) |
 | GET | `/tools/:id` | Tool detail |
-| PUT/DELETE | `/tools/:id` | Manage tool (owner) |
+| GET | `/tools/:id/unavailable_dates` | Tool blackout dates |
+| POST | `/tools` | Create tool (auth) |
+| PUT | `/tools/:id` | Update tool (owner) |
+| DELETE | `/tools/:id` | Delete tool (owner) |
 | GET | `/my/tools` | Owner's listings |
 | POST | `/upload` | Upload image (auth) |
 | GET | `/files/:path` | Serve image |
@@ -84,12 +96,19 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 | GET | `/bookings?role=renter\|owner` | List bookings |
 | GET | `/bookings/:id` | Booking detail |
 | PUT | `/bookings/:id/status` | Approve/decline/cancel/complete |
+| POST | `/purchases` | Create purchase reservation |
+| GET | `/purchases` | List purchases |
 | POST | `/favorites/:tool_id` | Save |
 | DELETE | `/favorites/:tool_id` | Unsave |
 | GET | `/favorites` | List user's saved tools |
+| POST | `/follows/:owner_id` | Follow owner |
+| DELETE | `/follows/:owner_id` | Unfollow owner |
+| GET | `/follows` | List followed owners |
+| GET | `/follows/check/:owner_id` | Check if following |
 | POST | `/reviews` | Create review |
 | GET | `/reviews?tool_id=&user_id=` | List reviews |
 | GET | `/users/:id` | Public profile |
+| GET | `/ai/quota` | Current AI quota |
 | POST | `/ai/recommend` | AI tool assistant |
 
 ## 7. Monetization Strategy

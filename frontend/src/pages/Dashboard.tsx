@@ -3,7 +3,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
-import { api, imageUrl } from "@/lib/api";
+import { imageUrl } from "@/lib/api";
+import {
+  useMyTools,
+  useBookings,
+  useFavorites,
+  useFollows,
+  useVerifyIdentity,
+  useDeleteTool,
+  useUpdateBookingStatus,
+  useUpdateFavoriteAlerts,
+  useToggleFavorite,
+  useToggleFollow,
+} from "@/lib/queries";
 import Header from "@/components/Header";
 import ToolCard from "@/components/ToolCard";
 import { Button } from "@/components/ui/button";
@@ -18,76 +30,81 @@ export default function Dashboard() {
   const { user, loading } = useAuth();
   const { t } = useTranslation();
   const nav = useNavigate();
-  const [myTools, setMyTools] = useState([]);
-  const [renterBookings, setRenterBookings] = useState([]);
-  const [ownerBookings, setOwnerBookings] = useState([]);
-  const [favorites, setFavorites] = useState([]);
-  const [follows, setFollows] = useState([]);
+
+  // Query hooks
+  const { data: myToolsData = [] } = useMyTools(Boolean(user));
+  const { data: renterBookingsData = [] } = useBookings("renter", Boolean(user));
+  const { data: ownerBookingsData = [] } = useBookings("owner", Boolean(user));
+  const { data: favoritesData = [] } = useFavorites(Boolean(user));
+  const { data: followsData = [] } = useFollows(Boolean(user));
+
+  // Mutations
+  const verifyIdentity = useVerifyIdentity();
+  const deleteTool = useDeleteTool();
+  const updateBookingStatus = useUpdateBookingStatus();
+  const updateFavoriteAlerts = useUpdateFavoriteAlerts();
+  const toggleFavorite = useToggleFavorite();
+  const toggleFollow = useToggleFollow();
 
   useEffect(() => {
     if (!loading && !user) nav("/login");
   }, [loading, user, nav]);
 
-  useEffect(() => {
-    if (!user) return;
-    api.get("/my/tools").then(r => setMyTools(r.data));
-    api.get("/bookings", { params: { role: "renter" } }).then(r => setRenterBookings(r.data));
-    api.get("/bookings", { params: { role: "owner" } }).then(r => setOwnerBookings(r.data));
-    api.get("/favorites").then(r => setFavorites(r.data));
-    api.get("/follows").then(r => setFollows(r.data));
-  }, [user]);
-
   if (!user) return null;
 
-  const startVerification = async () => {
+  const startVerificationHandler = async () => {
     try {
-      const r = await api.post("/identity/verify/start", { return_url: window.location.origin + "/dashboard" });
-      window.location.href = r.data.url;
+      const res = await verifyIdentity.mutateAsync();
+      window.location.href = res.url;
     } catch (e) {
       toast.error(e.response?.data?.detail || "Couldn't start verification");
     }
   };
 
-  const deleteTool = async (id) => {
+  const deleteToolHandler = async (id) => {
     if (!window.confirm("Delete this listing?")) return;
     try {
-      await api.delete(`/tools/${id}`);
-      setMyTools(myTools.filter(t => t.id !== id));
+      await deleteTool.mutateAsync(id);
       toast.success("Listing deleted");
-    } catch { toast.error("Failed"); }
+    } catch {
+      toast.error("Failed");
+    }
   };
 
-  const updateBookingStatus = async (id, status) => {
+  const updateBookingStatusHandler = async (id, status) => {
     try {
-      await api.put(`/bookings/${id}/status`, { status });
-      const r = await api.get("/bookings", { params: { role: "owner" } });
-      setOwnerBookings(r.data);
+      await updateBookingStatus.mutateAsync({ id, status });
       toast.success(`Booking ${status}`);
-    } catch { toast.error("Failed"); }
+    } catch {
+      toast.error("Failed");
+    }
   };
 
-  const toggleAlert = async (toolId, current) => {
+  const toggleAlertHandler = async (toolId, current) => {
     try {
       const next = !current;
-      await api.post(`/favorites/${toolId}`, null, { params: { alerts: next } });
-      setFavorites(favs => favs.map(f => f.id === toolId ? { ...f, alerts_on: next } : f));
+      await updateFavoriteAlerts.mutateAsync({ toolId, alerts: next });
       toast.success(next ? t("dashboard.alerts_enabled") : t("dashboard.alerts_disabled"));
-    } catch { toast.error("Failed"); }
+    } catch {
+      toast.error("Failed");
+    }
   };
 
-  const removeFavorite = async (toolId) => {
+  const removeFavoriteHandler = async (toolId) => {
     try {
-      await api.delete(`/favorites/${toolId}`);
-      setFavorites(favs => favs.filter(f => f.id !== toolId));
-    } catch { toast.error("Failed"); }
+      await toggleFavorite.mutateAsync({ toolId, remove: true });
+    } catch {
+      toast.error("Failed");
+    }
   };
 
-  const unfollowOwner = async (ownerId) => {
+  const unfollowOwnerHandler = async (ownerId) => {
     try {
-      await api.delete(`/follows/${ownerId}`);
-      setFollows(fs => fs.filter(o => o.id !== ownerId));
+      await toggleFollow.mutateAsync({ userId: ownerId, remove: true });
       toast.success(t("profile.unfollowed"));
-    } catch { toast.error("Failed"); }
+    } catch {
+      toast.error("Failed");
+    }
   };
 
   const statusColor = {
@@ -114,9 +131,9 @@ export default function Dashboard() {
             <h1 className="font-heading text-3xl font-extrabold">{t("dashboard.welcome", { name: user.name.split(" ")[0] })}</h1>
             <p className="text-brand-muted">{user.email}</p>
             <div className="flex gap-4 mt-3 text-sm">
-              <div><span className="font-bold">{myTools.length}</span> <span className="text-brand-muted">{t("dashboard.listings_count")}</span></div>
-              <div><span className="font-bold">{renterBookings.length}</span> <span className="text-brand-muted">{t("dashboard.rentals_count")}</span></div>
-              <div><span className="font-bold">{favorites.length}</span> <span className="text-brand-muted">{t("dashboard.saved_count")}</span></div>
+              <div><span className="font-bold">{myToolsData.length}</span> <span className="text-brand-muted">{t("dashboard.listings_count")}</span></div>
+              <div><span className="font-bold">{renterBookingsData.length}</span> <span className="text-brand-muted">{t("dashboard.rentals_count")}</span></div>
+              <div><span className="font-bold">{favoritesData.length}</span> <span className="text-brand-muted">{t("dashboard.saved_count")}</span></div>
             </div>
           </div>
           <Button asChild className="bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold" data-testid="dashboard-list-btn">
@@ -134,7 +151,7 @@ export default function Dashboard() {
               <div className="font-heading font-bold text-brand-text">{t("dashboard.verify_title")}</div>
               <p className="text-sm text-brand-muted">{t("dashboard.verify_subtitle")}</p>
             </div>
-            <Button onClick={startVerification} data-testid="start-verification-btn"
+            <Button onClick={startVerificationHandler} data-testid="start-verification-btn"
               className="bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold">
               <ShieldCheck className="w-4 h-4 mr-1.5" /> {t("dashboard.verify_btn")}
             </Button>
@@ -158,14 +175,14 @@ export default function Dashboard() {
           </TabsList>
 
           <TabsContent value="listings">
-            {myTools.length === 0 ? (
+            {myToolsData.length === 0 ? (
               <EmptyState icon={Package} title={t("dashboard.empty_listings")} cta={t("dashboard.list_first")} to="/list" />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {myTools.map(t => (
+                {myToolsData.map(t => (
                   <div key={t.id} className="relative">
                     <ToolCard tool={t} />
-                    <Button variant="outline" size="sm" onClick={() => deleteTool(t.id)}
+                    <Button variant="outline" size="sm" onClick={() => deleteToolHandler(t.id)}}
                       data-testid={`delete-tool-${t.id}`}
                       className="absolute top-3 left-3 z-10 rounded-lg bg-white border-brand-border">
                       <Trash2 className="w-3.5 h-3.5 text-red-500" />
@@ -177,22 +194,22 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="renter">
-            {renterBookings.length === 0 ? (
+            {renterBookingsData.length === 0 ? (
               <EmptyState icon={Calendar} title={t("dashboard.empty_renter")} cta={t("dashboard.browse_tools")} to="/browse" />
             ) : (
               <div className="space-y-3">
-                {renterBookings.map(b => <BookingRow key={b.id} booking={b} role="renter" />)}
+                {renterBookingsData.map(b => <BookingRow key={b.id} booking={b} role="renter" />)}
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="owner">
-            {ownerBookings.length === 0 ? (
+            {ownerBookingsData.length === 0 ? (
               <EmptyState icon={Package} title={t("dashboard.empty_owner")} cta={t("dashboard.list_tool")} to="/list" />
             ) : (
               <div className="space-y-3">
-                {ownerBookings.map(b => (
-                  <BookingRow key={b.id} booking={b} role="owner" onUpdateStatus={updateBookingStatus} />
+                {ownerBookingsData.map(b => (
+                  <BookingRow key={b.id} booking={b} role="owner" onUpdateStatus={updateBookingStatusHandler} />
                 ))}
               </div>
             )}
@@ -205,19 +222,19 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-heading text-lg font-bold flex items-center gap-2">
                     <Heart className="w-5 h-5 text-brand-secondary" />
-                    {t("dashboard.saved_tools")} <span className="text-brand-muted font-medium">({favorites.length})</span>
+                    {t("dashboard.saved_tools")} <span className="text-brand-muted font-medium">({favoritesData.length})</span>
                   </h3>
                 </div>
-                {favorites.length === 0 ? (
+                {favoritesData.length === 0 ? (
                   <EmptyState icon={Heart} title={t("dashboard.empty_favorites")} cta={t("dashboard.discover_tools")} to="/browse" />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {favorites.map(tool => (
+                    {favoritesData.map(tool => (
                       <div key={tool.id} className="relative group">
                         <ToolCard tool={tool} />
                         <div className="absolute top-3 right-3 z-10 flex gap-1.5">
                           <button
-                            onClick={() => toggleAlert(tool.id, tool.alerts_on)}
+                            onClick={() => toggleAlertHandler(tool.id, tool.alerts_on)}}
                             title={tool.alerts_on ? t("dashboard.alerts_on") : t("dashboard.alerts_off")}
                             data-testid={`fav-alert-${tool.id}`}
                             className={`w-9 h-9 rounded-full backdrop-blur flex items-center justify-center shadow-sm transition-colors ${tool.alerts_on
@@ -227,7 +244,7 @@ export default function Dashboard() {
                             {tool.alerts_on ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                           </button>
                           <button
-                            onClick={() => removeFavorite(tool.id)}
+                            onClick={() => removeFavoriteHandler(tool.id)}}
                             title={t("dashboard.remove_favorite")}
                             data-testid={`fav-remove-${tool.id}`}
                             className="w-9 h-9 rounded-full bg-white/95 text-brand-muted hover:text-red-500 hover:bg-white backdrop-blur flex items-center justify-center shadow-sm transition-colors"
@@ -246,17 +263,17 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-heading text-lg font-bold flex items-center gap-2">
                     <Users className="w-5 h-5 text-brand-primary" />
-                    {t("dashboard.followed_owners")} <span className="text-brand-muted font-medium">({follows.length})</span>
+                    {t("dashboard.followed_owners")} <span className="text-brand-muted font-medium">({followsData.length})</span>
                   </h3>
                 </div>
-                {follows.length === 0 ? (
+                {followsData.length === 0 ? (
                   <div className="bg-white border border-brand-border rounded-2xl p-10 text-center">
                     <Users className="w-10 h-10 mx-auto text-brand-muted/40 mb-3" />
                     <p className="text-sm text-brand-muted">{t("dashboard.empty_follows")}</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {follows.map(o => (
+                    {followsData.map(o => (
                       <div key={o.id} className="bg-white border border-brand-border rounded-2xl p-5 flex items-center gap-4" data-testid={`follow-row-${o.id}`}>
                         <Avatar className="h-14 w-14">
                           {o.picture && <AvatarImage src={o.picture} />}
@@ -268,7 +285,7 @@ export default function Dashboard() {
                         </div>
                         <Button
                           variant="outline" size="sm"
-                          onClick={() => unfollowOwner(o.id)}
+                          onClick={() => unfollowOwnerHandler(o.id)}
                           data-testid={`unfollow-${o.id}`}
                           className="rounded-xl text-xs"
                         >

@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth";
-import { api, imageUrl } from "@/lib/api";
+import { imageUrl } from "@/lib/api";
+import { useMessageThreads, useMessages, useSendMessage } from "@/lib/queries";
 import Header from "@/components/Header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,41 +15,39 @@ import { formatTime } from "@/lib/dateFormat";
 export default function Messages() {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
-  const [threads, setThreads] = useState([]);
   const [activeId, setActiveId] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef(null);
 
-  useEffect(() => {
-    if (!user) return;
-    const load = () => api.get("/messages/threads").then(r => {
-      setThreads(r.data);
-      if (!activeId && r.data.length > 0) setActiveId(r.data[0].booking_id);
-    });
-    load();
-    const t = setInterval(load, 8000);
-    return () => clearInterval(t);
-  }, [user, activeId]);
+  // Queries
+  const { data: threads = [], refetch: refetchThreads } = useMessageThreads(Boolean(user), { 
+    refetchInterval: 8000 
+  });
+  const { data: messages = [] } = useMessages(activeId ? String(activeId) : undefined, {
+    refetchInterval: 5000
+  });
 
+  // Mutations
+  const sendMessage = useSendMessage();
+
+  // Set active thread to first thread if available
   useEffect(() => {
-    if (!activeId) return;
-    const load = () => api.get(`/messages/${activeId}`).then(r => {
-      setMessages(r.data);
-      setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }), 100);
-    });
-    load();
-    const t = setInterval(load, 5000);
-    return () => clearInterval(t);
-  }, [activeId]);
+    if (!activeId && threads.length > 0) {
+      setActiveId(threads[0].booking_id);
+    }
+  }, [threads]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }), 100);
+  }, [messages]);
 
   const send = async () => {
     if (!draft.trim() || !activeId) return;
     try {
-      await api.post("/messages", { booking_id: activeId, content: draft });
+      await sendMessage.mutateAsync({ booking_id: activeId, content: draft });
       setDraft("");
-      const r = await api.get(`/messages/${activeId}`);
-      setMessages(r.data);
+      await refetchThreads();
     } catch {}
   };
 

@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
+import { imageUrl } from "@/lib/api";
+import { useAIQuota, useAIRecommend } from "@/lib/queries";
 import Header from "@/components/Header";
-import { api, imageUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -41,16 +42,16 @@ export default function AIAssistant() {
   const { user, loading: authLoading } = useAuth();
   const nav = useNavigate();
   const EXAMPLES = EXAMPLES_BY_LANG[i18n.language?.split("-")[0]] || EXAMPLES_BY_LANG.en;
+  
   const [task, setTask] = useState("");
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [quota, setQuota] = useState(null); // { remaining, total, unlimited }
   const [quotaErr, setQuotaErr] = useState("");
 
-  useEffect(() => {
-    if (!user) return;
-    api.get("/ai/quota").then(r => setQuota(r.data)).catch(() => {});
-  }, [user]);
+  // Queries
+  const { data: quota = null } = useAIQuota(Boolean(user));
+
+  // Mutations
+  const aiRecommend = useAIRecommend();
 
   const submit = async (e) => {
     e?.preventDefault();
@@ -60,26 +61,20 @@ export default function AIAssistant() {
       setQuotaErr(t("ai.quota_exceeded"));
       return;
     }
-    setLoading(true);
     setResult(null);
     setQuotaErr("");
     try {
-      const res = await api.post("/ai/recommend", { task });
-      setResult(res.data);
-      if (res.data?.quota) setQuota(res.data.quota);
+      const res = await aiRecommend.mutateAsync(task);
+      setResult(res);
+      setTask("");
     } catch (err) {
       if (err?.response?.status === 429) {
         const detail = err.response.data?.detail;
         const msg = typeof detail === "object" ? detail.message : detail;
         setQuotaErr(msg || t("ai.quota_exceeded"));
-        if (typeof detail === "object") {
-          setQuota({ remaining: 0, total: detail.total, unlimited: false });
-        }
       } else {
         toast.error(t("ai.ai_error"));
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -144,15 +139,15 @@ export default function AIAssistant() {
           />
           <div className="flex items-center justify-between mt-3">
             <span className="text-xs text-brand-muted">{task.length} chars</span>
-            <Button type="submit" disabled={loading || !task.trim() || (!!user && quota && !quota.unlimited && quota.remaining <= 0)}
+            <Button type="submit" disabled={aiRecommend.isPending || !task.trim() || (!!user && quota && !quota.unlimited && quota.remaining <= 0)}
               data-testid="ai-submit-btn"
               className="bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl font-semibold h-11 px-6">
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("ai.thinking")}</> : <>{t("ai.find_tools")} <ArrowRight className="w-4 h-4 ml-1.5" /></>}
+              {aiRecommend.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("ai.thinking")}</> : <>{t("ai.find_tools")} <ArrowRight className="w-4 h-4 ml-1.5" /></>}
             </Button>
           </div>
         </form>
 
-        {!result && !loading && (
+        {!result && !aiRecommend.isPending && (
           <div>
             <p className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-3">{t("ai.try_one")}</p>
             <div className="flex flex-wrap gap-2">

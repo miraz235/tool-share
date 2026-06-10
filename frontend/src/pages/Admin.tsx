@@ -1,9 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
+import {
+  useAdminStats,
+  useAdminUsers,
+  useAdminBookings,
+  useAdminTools,
+  useAdminEmails,
+  useAdminReviews,
+  useAdminUpdateUser,
+  useAdminDisputeBooking,
+  useAdminHideReview,
+  useAdminFeatureTool,
+} from "@/lib/queries";
 import Header from "@/components/Header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -20,50 +31,51 @@ export default function Admin() {
   const { t, i18n } = useTranslation();
   const { format } = useCurrency();
   const nav = useNavigate();
-  const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [tools, setTools] = useState([]);
-  const [emails, setEmails] = useState([]);
-  const [reviews, setReviews] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!loading && (!user || !user.is_admin)) nav("/");
   }, [loading, user, nav]);
 
-  const refresh = () => {
-    api.get("/admin/stats").then(r => setStats(r.data));
-    api.get("/admin/users", { params: search ? { q: search } : {} }).then(r => setUsers(r.data));
-    api.get("/admin/bookings").then(r => setBookings(r.data));
-    api.get("/admin/tools").then(r => setTools(r.data));
-    api.get("/admin/email_log").then(r => setEmails(r.data));
-    api.get("/admin/reviews").then(r => setReviews(r.data)).catch(() => {});
-  };
+  // Query hooks
+  const { data: statsData } = useAdminStats();
+  const { data: usersData = [] } = useAdminUsers(search);
+  const { data: bookingsData = [] } = useAdminBookings();
+  const { data: toolsData = [] } = useAdminTools();
+  const { data: emailsData = [] } = useAdminEmails();
+  const { data: reviewsData = [] } = useAdminReviews();
 
-  useEffect(() => { if (user?.is_admin) refresh(); }, [user]);
+  // Mutations
+  const updateUser = useAdminUpdateUser();
+  const disputeBooking = useAdminDisputeBooking();
+  const hideReview = useAdminHideReview();
+  const featureTool = useAdminFeatureTool();
 
   const toggle = async (uid, field, value) => {
     try {
-      await api.put(`/admin/users/${uid}`, { [field]: value });
-      setUsers(users.map(u => u.id === uid ? { ...u, [field]: value } : u));
+      await updateUser.mutateAsync({ userId: uid, field, value });
       toast.success(t("admin.updated"));
-    } catch { toast.error("Failed"); }
+    } catch {
+      toast.error("Failed");
+    }
   };
 
   const toggleDispute = async (bid) => {
     try {
-      const r = await api.put(`/admin/bookings/${bid}/dispute`);
-      setBookings(bookings.map(b => b.id === bid ? { ...b, dispute_open: r.data.dispute_open } : b));
-    } catch { toast.error("Failed"); }
+      await disputeBooking.mutateAsync(bid);
+      toast.success("Dispute updated");
+    } catch {
+      toast.error("Failed");
+    }
   };
 
   const toggleHideReview = async (rid) => {
     try {
-      const r = await api.put(`/admin/reviews/${rid}/hide`);
-      setReviews(reviews.map(rv => rv.id === rid ? { ...rv, hidden: r.data.hidden } : rv));
+      await hideReview.mutateAsync(rid);
       toast.success(t("admin.updated"));
-    } catch { toast.error("Failed"); }
+    } catch {
+      toast.error("Failed");
+    }
   };
 
   if (!user?.is_admin) return null;
@@ -90,14 +102,14 @@ export default function Admin() {
           </Badge>
         </div>
 
-        {stats && (
+        {statsData && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <StatCard icon={Users} label={t("admin.users")} value={stats.users} sub={t("admin.verified", { count: stats.verified_users })} />
-            <StatCard icon={Package} label={t("admin.listings")} value={stats.tools} />
-            <StatCard icon={Calendar} label={t("admin.bookings")} value={stats.bookings_total} sub={t("admin.approved", { count: stats.approved_bookings })} />
-            <StatCard icon={DollarSign} label={t("admin.revenue")} value={format(stats.revenue)} sub={t("admin.owed", { value: format(stats.pending_payouts) })} />
+            <StatCard icon={Users} label={t("admin.users")} value={statsData.users} sub={t("admin.verified", { count: statsData.verified_users })} />
+            <StatCard icon={Package} label={t("admin.listings")} value={statsData.tools} />
+            <StatCard icon={Calendar} label={t("admin.bookings")} value={statsData.bookings_total} sub={t("admin.approved", { count: statsData.approved_bookings })} />
+            <StatCard icon={DollarSign} label={t("admin.revenue")} value={format(statsData.revenue)} sub={t("admin.owed", { value: format(statsData.pending_payouts) })} />
           </div>
-        )}
+        )}}
 
         <Tabs defaultValue="users">
           <TabsList className="bg-white border border-brand-border rounded-xl p-1 mb-6">
@@ -139,7 +151,7 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => (
+                  {usersData.map(u => (
                     <tr key={u.id} className="border-t border-brand-border" data-testid={`admin-user-${u.id}`}>
                       <td className="p-3">
                         <div className="flex items-center gap-3">
@@ -180,7 +192,7 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {bookings.map(b => (
+                  {bookingsData.map(b => (
                     <tr key={b.id} className="border-t border-brand-border" data-testid={`admin-booking-${b.id}`}>
                       <td className="p-3">
                         <Link to={`/bookings/${b.id}`} className="hover:underline font-semibold">{b.tool_title}</Link>
@@ -221,7 +233,7 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tools.map(tool => (
+                  {toolsData.map(tool => (
                     <tr key={tool.id} className="border-t border-brand-border" data-testid={`admin-tool-${tool.id}`}>
                       <td className="p-3"><Link to={`/tools/${tool.id}`} className="hover:underline font-semibold">{tool.title}</Link></td>
                       <td className="p-3 text-brand-muted capitalize">{tool.category.replace('-', ' ')}</td>
@@ -233,8 +245,7 @@ export default function Admin() {
                         <Switch checked={!!tool.is_featured}
                           onCheckedChange={async () => {
                             try {
-                              const r = await api.put(`/admin/tools/${tool.id}/feature`);
-                              setTools(tools.map(x => x.id === tool.id ? { ...x, is_featured: r.data.is_featured } : x));
+                              await featureTool.mutateAsync(tool.id);
                               toast.success(t("admin.updated"));
                             } catch { toast.error("Failed"); }
                           }}
@@ -252,7 +263,7 @@ export default function Admin() {
               ⚠️ <strong>{t("admin.mocked_warning")}</strong> <code>backend/.env</code>.
             </div>
             <div className="space-y-2">
-              {emails.map(e => (
+              {emailsData.map(e => (
                 <div key={e.id} className="bg-white border border-brand-border rounded-xl p-4" data-testid={`email-log-${e.id}`}>
                   <div className="flex items-baseline gap-3 mb-1">
                     <div className="font-semibold text-sm">{e.subject}</div>
@@ -262,7 +273,7 @@ export default function Admin() {
                   <p className="text-sm mt-1">{e.body}</p>
                 </div>
               ))}
-              {emails.length === 0 && (
+              {emailsData.length === 0 && (
                 <div className="bg-white border border-brand-border rounded-2xl p-12 text-center text-brand-muted">{t("admin.no_emails")}</div>
               )}
             </div>
@@ -282,7 +293,7 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reviews.map(rv => (
+                  {reviewsData.map(rv => (
                     <tr key={rv.id} className={`border-t border-brand-border ${rv.hidden ? "opacity-50" : ""}`} data-testid={`admin-review-${rv.id}`}>
                       <td className="p-3 font-semibold">{rv.reviewer_name}</td>
                       <td className="p-3 text-brand-muted">

@@ -2,9 +2,19 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { api, imageUrl } from "@/lib/api";
+import { imageUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
+import {
+  useTool,
+  useToolReviews,
+  useToolUnavailableDates,
+  useInsuranceTiers,
+  useFavorites,
+  useCreateBooking,
+  usePurchaseTool,
+  useToggleFavorite,
+} from "@/lib/queries";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import MapView from "@/components/MapView";
@@ -22,35 +32,25 @@ export default function ToolDetail() {
   const nav = useNavigate();
   const { user } = useAuth();
   const { format, currency: viewerCurrency } = useCurrency();
-  const [tool, setTool] = useState(null);
-  const [reviews, setReviews] = useState([]);
   const [activeImg, setActiveImg] = useState<number>(0);
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | undefined>(undefined);
   const [pickupMethod, setPickupMethod] = useState<string>("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState<string>("");
   const [message, setMessage] = useState<string>("");
-  const [favorite, setFavorite] = useState<boolean>(false);
-  const [booking, setBooking] = useState<boolean>(false);
   const [insuranceTier, setInsuranceTier] = useState<string>("none");
-  const [insuranceTiers, setInsuranceTiers] = useState<Record<string, { daily_fee: number; label: string }>>({});
-  const [buying, setBuying] = useState<boolean>(false);
-  const [unavailableDates, setUnavailableDates] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    api.get(`/tools/${id}`).then(r => setTool(r.data)).catch(() => toast.error("Tool not found"));
-    api.get(`/reviews`, { params: { tool_id: id } }).then(r => setReviews(r.data)).catch(() => {});
-    api.get(`/tools/${id}/unavailable_dates`).then(r => {
-      setUnavailableDates(new Set(r.data.dates || []));
-    }).catch(() => {});
-    api.get(`/insurance/tiers`).then(r => setInsuranceTiers(r.data)).catch(() => {});
-  }, [id]);
+  // Query hooks
+  const { data: tool, isLoading: toolLoading } = useTool(id);
+  const { data: reviews = [] } = useToolReviews(id);
+  const { data: unavailableDatesData = {} } = useToolUnavailableDates(id);
+  const { data: insuranceTiersData = {} } = useInsuranceTiers();
+  const { data: favoritesList = [] } = useFavorites(Boolean(user));
+  const createBooking = useCreateBooking();
+  const purchaseTool = usePurchaseTool();
+  const toggleFavorite = useToggleFavorite();
 
-  useEffect(() => {
-    if (!user) return;
-    api.get("/favorites").then(r => {
-      setFavorite(r.data.some(t => t.id === id));
-    }).catch(() => {});
-  }, [user, id]);
+  const favorite = favoritesList.some(t => t.id === id);
+  const unavailableDates = new Set(unavailableDatesData.dates || []);
 
   if (!tool) {
     return (
@@ -72,9 +72,8 @@ export default function ToolDetail() {
       toast.error("Pick rental dates");
       return;
     }
-    setBooking(true);
     try {
-      const res = await api.post("/bookings", {
+      const res = await createBooking.mutateAsync({
         tool_id: tool.id,
         start_date: dateRange.from.toISOString().split('T')[0],
         end_date: dateRange.to.toISOString().split('T')[0],
@@ -84,41 +83,32 @@ export default function ToolDetail() {
         insurance_tier: insuranceTier,
       });
       toast.success("Booking request sent!");
-      nav(`/bookings/${res.data.id}`);
+      nav(`/bookings/${res.id}`);
     } catch (e) {
       toast.error(e.response?.data?.detail || "Failed to create booking");
-    } finally {
-      setBooking(false);
     }
   };
 
   const submitBuy = async () => {
     if (!user) { nav("/login"); return; }
     if (!window.confirm(`Confirm purchase for ${format(tool.sale_price, { from: tool.price_currency })}?`)) return;
-    setBuying(true);
     try {
-      const r = await api.post("/purchases", null, { params: { tool_id: tool.id } });
+      await purchaseTool.mutateAsync(tool.id);
       toast.success("Purchase reserved! Check your dashboard.");
       nav(`/dashboard`);
     } catch (e) {
       toast.error(e.response?.data?.detail || "Purchase failed");
-    } finally {
-      setBuying(false);
     }
   };
 
   const toggleFav = async () => {
     if (!user) { nav("/login"); return; }
     try {
-      if (favorite) {
-        await api.delete(`/favorites/${tool.id}`);
-        setFavorite(false);
-        toast.success("Removed from favorites");
-      } else {
-        await api.post(`/favorites/${tool.id}`);
-        setFavorite(true);
-        toast.success("Saved to favorites");
-      }
+      await toggleFavorite.mutateAsync({
+        toolId: tool.id,
+        remove: favorite,
+      });
+      toast.success(favorite ? "Removed from favorites" : "Saved to favorites");
     } catch {}
   };
 
@@ -365,10 +355,10 @@ export default function ToolDetail() {
                 </div>
               )}
 
-              <Button onClick={submitBooking} disabled={booking}
+              <Button onClick={submitBooking} disabled={createBooking.isPending}
                 data-testid="request-booking-btn"
                 className="w-full bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold h-12">
-                {booking ? t("auth.signing_in") : user ? t("tool.request_to_book") : t("tool.sign_in_to_book")}
+                {createBooking.isPending ? t("auth.signing_in") : user ? t("tool.request_to_book") : t("tool.sign_in_to_book")}
               </Button>
 
               {/* Buy option */}
@@ -378,10 +368,10 @@ export default function ToolDetail() {
                     <span className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("tool.buy_outright")}</span>
                     <span className="font-heading text-2xl font-extrabold text-brand-primary">{format(tool.sale_price, { from: tool.price_currency })}</span>
                   </div>
-                  <Button onClick={submitBuy} disabled={buying} variant="outline"
+                  <Button onClick={submitBuy} disabled={purchaseTool.isPending} variant="outline"
                     data-testid="buy-tool-btn"
                     className="w-full rounded-xl font-semibold border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white h-11">
-                    {buying ? t("booking.redirecting") : t("tool.buy_now")}
+                    {purchaseTool.isPending ? t("booking.redirecting") : t("tool.buy_now")}
                   </Button>
                 </div>
               )}

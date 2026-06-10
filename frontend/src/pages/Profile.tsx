@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api";
+import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { usePublicUser, useUserTools, useUserReviews, useFollowCheck, useToggleFollow } from "@/lib/queries";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ToolCard from "@/components/ToolCard";
@@ -11,49 +10,36 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Star, ShieldCheck, MapPin, Calendar, UserPlus, UserCheck } from "lucide-react";
 import type { PublicUser, Tool, Review } from "@/types";
-import type { AxiosError } from "axios";
 
 export default function Profile() {
   const { id } = useParams<{ id: string }>();
   const { t, i18n } = useTranslation();
   const { user: me } = useAuth();
-  const [user, setUser] = useState<PublicUser | null>(null);
-  const [tools, setTools] = useState<Tool[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [following, setFollowing] = useState<boolean>(false);
-  const [followLoading, setFollowLoading] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!id) return;
-    api.get<PublicUser>(`/users/${id}`).then((r) => setUser(r.data));
-    api.get<Tool[]>(`/tools`, { params: { owner_id: id } }).then((r) => setTools(r.data));
-    api.get<Review[]>(`/reviews`, { params: { user_id: id } }).then((r) => setReviews(r.data));
-    if (me && me.id !== id) {
-      api.get<{ following: boolean }>(`/follows/check/${id}`)
-        .then((r) => setFollowing(r.data.following))
-        .catch(() => { /* ignore */ });
-    }
-  }, [id, me?.id]);
+  
+  // Queries
+  const { data: user, isLoading: userLoading } = usePublicUser(id);
+  const { data: tools = [] } = useUserTools(id);
+  const { data: reviews = [] } = useUserReviews(id);
+  const { data: followData = { following: false } } = useFollowCheck(id && me && me.id !== id ? id : undefined);
+  
+  // Mutations
+  const toggleFollowMutation = useToggleFollow();
 
   const toggleFollow = async (): Promise<void> => {
-    if (!me) { toast.error(t("profile.login_to_follow")); return; }
+    if (!me) { 
+      toast.error(t("profile.login_to_follow")); 
+      return; 
+    }
     if (!id) return;
-    setFollowLoading(true);
     try {
-      if (following) {
-        await api.delete(`/follows/${id}`);
-        setFollowing(false);
-        toast.success(t("profile.unfollowed"));
-      } else {
-        await api.post(`/follows/${id}`);
-        setFollowing(true);
-        toast.success(t("profile.followed"));
-      }
+      await toggleFollowMutation.mutateAsync({ 
+        userId: id, 
+        remove: followData.following 
+      });
+      const action = followData.following ? t("profile.unfollowed") : t("profile.followed");
+      toast.success(action);
     } catch (err) {
-      const e = err as AxiosError<{ detail?: string }>;
-      toast.error(e.response?.data?.detail || "Failed");
-    } finally {
-      setFollowLoading(false);
+      toast.error("Failed");
     }
   };
 
@@ -104,14 +90,14 @@ export default function Profile() {
           {me && me.id !== id && (
             <Button
               onClick={toggleFollow}
-              disabled={followLoading}
+              disabled={toggleFollowMutation.isPending}
               data-testid="follow-owner-btn"
-              variant={following ? "outline" : "default"}
-              className={following
+              variant={followData.following ? "outline" : "default"}
+              className={followData.following
                 ? "rounded-xl border-brand-primary text-brand-primary hover:bg-brand-primary/5"
                 : "rounded-xl bg-brand-primary hover:bg-brand-primary-hover text-white"}
             >
-              {following ? (
+              {followData.following ? (
                 <><UserCheck className="w-4 h-4 mr-1.5" /> {t("profile.following")}</>
               ) : (
                 <><UserPlus className="w-4 h-4 mr-1.5" /> {t("profile.follow")}</>

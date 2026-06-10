@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { api, imageUrl } from "@/lib/api";
+import { imageUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
+import { useCategories, useUploadImage, useCreateTool } from "@/lib/queries";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,18 +14,41 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Upload, X, Loader2 } from "lucide-react";
-
+ 
+type FormState = {
+  title: string;
+  description: string;
+  category: string;
+  daily_price: string;
+  price_currency: string;
+  security_deposit: string;
+  condition: string;
+  pickup_available: boolean;
+  delivery_available: boolean;
+  delivery_radius_km: number;
+  address: string;
+  city: string;
+  postal_code: string;
+  lat: string;
+  lng: string;
+};
+ 
 export default function ListTool() {
   const { user, loading } = useAuth();
   const { currency: viewerCurrency } = useCurrency();
   const { t } = useTranslation();
   const nav = useNavigate();
-  const [categories, setCategories] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [images, setImages] = useState([]);
-
-  const [form, setForm] = useState({
+ 
+  // Queries
+  const { data: categories = [] } = useCategories();
+ 
+  // Mutations
+  const uploadImage = useUploadImage();
+  const createTool = useCreateTool();
+ 
+  const [images, setImages] = useState<string[]>([]);
+ 
+  const [form, setForm] = useState<FormState>({
     title: "",
     description: "",
     category: "",
@@ -41,40 +65,31 @@ export default function ListTool() {
     lat: "",
     lng: "",
   });
-
-  useEffect(() => {
-    api.get("/categories").then(r => setCategories(r.data));
-  }, []);
-
+ 
   useEffect(() => {
     if (!loading && !user) nav("/login");
   }, [loading, user, nav]);
-
-  const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  const onFiles = async (files) => {
-    setUploading(true);
+ 
+  const upd = <K extends keyof FormState>(k: K, v: FormState[K]) =>
+    setForm(f => ({ ...f, [k]: v }));
+ 
+  const onFiles = async (files: File[]) => {
     try {
       for (const file of files) {
-        const fd = new FormData();
-        fd.append("file", file);
-        const res = await api.post("/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
-        setImages(prev => [...prev, res.data.path]);
+        const res = await uploadImage.mutateAsync(file);
+        setImages(prev => [...prev, res.path]);
       }
-    } catch (e) {
+    } catch {
       toast.error("Upload failed");
-    } finally {
-      setUploading(false);
     }
   };
-
-  const submit = async (e) => {
+ 
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.category || !form.daily_price || !form.city || !form.lat || !form.lng) {
       toast.error(t("list_tool.fill_required"));
       return;
     }
-    setSubmitting(true);
     try {
       const payload = {
         title: form.title,
@@ -82,7 +97,7 @@ export default function ListTool() {
         category: form.category,
         daily_price: parseFloat(form.daily_price),
         price_currency: form.price_currency,
-        security_deposit: parseFloat(form.security_deposit || 0),
+        security_deposit: parseFloat(form.security_deposit || "0"),
         condition: form.condition,
         images,
         location: {
@@ -94,26 +109,27 @@ export default function ListTool() {
         },
         pickup_available: form.pickup_available,
         delivery_available: form.delivery_available,
-        delivery_radius_km: parseFloat(form.delivery_radius_km || 0),
+        delivery_radius_km: form.delivery_radius_km,
         unavailable_dates: [],
       };
-      const res = await api.post("/tools", payload);
+      const res = await createTool.mutateAsync(payload);
       toast.success(t("list_tool.tool_listed"));
-      nav(`/tools/${res.data.id}`);
-    } catch (err) {
+      nav(`/tools/${res.id}`);
+    } catch (err: any) {
       toast.error(err.response?.data?.detail || t("list_tool.create_failed"));
-    } finally {
-      setSubmitting(false);
     }
   };
-
-  const useMyLocation = () => {
+ 
+  const getMyLocation = () => {
     if (!navigator.geolocation) return toast.error("Geolocation not supported");
-    navigator.geolocation.getCurrentPosition((pos) => {
-      upd("lat", pos.coords.latitude.toFixed(6));
-      upd("lng", pos.coords.longitude.toFixed(6));
-      toast.success("Location set");
-    }, () => toast.error("Couldn't get location"));
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        upd("lat", pos.coords.latitude.toFixed(6));
+        upd("lng", pos.coords.longitude.toFixed(6));
+        toast.success("Location set");
+      },
+      () => toast.error("Couldn't get location"),
+    );
   };
 
   return (
@@ -139,13 +155,21 @@ export default function ListTool() {
                 </div>
               ))}
               {images.length < 6 && (
-                <label className="aspect-square rounded-xl border-2 border-dashed border-brand-border flex flex-col items-center justify-center cursor-pointer hover:border-brand-primary hover:bg-brand-subtle transition-colors"
-                  data-testid="upload-image-label">
-                  {uploading ? <Loader2 className="w-6 h-6 animate-spin text-brand-muted" /> : <Upload className="w-6 h-6 text-brand-muted" />}
+                <label
+                  className="aspect-square rounded-xl border-2 border-dashed border-brand-border flex flex-col items-center justify-center cursor-pointer hover:border-brand-primary hover:bg-brand-subtle transition-colors"
+                  data-testid="upload-image-label"
+                >
+                  {uploadImage.isPending
+                    ? <Loader2 className="w-6 h-6 animate-spin text-brand-muted" />
+                    : <Upload className="w-6 h-6 text-brand-muted" />}
                   <span className="text-xs mt-2 text-brand-muted">{t("list_tool.add_photo")}</span>
-                  <input type="file" accept="image/*" className="hidden"
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
                     onChange={(e) => e.target.files && onFiles(Array.from(e.target.files))}
-                    data-testid="upload-image-input"/>
+                    data-testid="upload-image-input"
+                  />
                 </label>
               )}
             </div>
@@ -263,10 +287,10 @@ export default function ListTool() {
             )}
           </section>
 
-          <Button type="submit" disabled={submitting}
+          <Button type="submit" disabled={createTool.isPending}
             data-testid="submit-listing-btn"
             className="w-full h-12 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl font-semibold">
-            {submitting ? t("list_tool.publishing") : t("list_tool.publish_listing")}
+            {createTool.isPending ? t("list_tool.publishing") : t("list_tool.publish_listing")}
           </Button>
         </form>
       </div>
