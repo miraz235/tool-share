@@ -47,7 +47,8 @@
     "buy": "à acheter",
     "joined": "Inscrit",
     "reviews_count": "avis",
-    "native_label": "Locale"
+    "native_label": "annoncé",
+    "native_price_tooltip": "Prix saisi en {{currency}} par le propriétaire"
   },
   "landing": {
     "tagline": "La communauté de partage d'outils de l'Amérique du Nord",

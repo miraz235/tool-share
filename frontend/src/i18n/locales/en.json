@@ -47,7 +47,8 @@
     "buy": "to buy",
     "joined": "Joined",
     "reviews_count": "reviews",
-    "native_label": "Local"
+    "native_label": "listed",
+    "native_price_tooltip": "Price authored in {{currency}} by the owner"
   },
   "landing": {
     "tagline": "North America's tool-sharing community",
