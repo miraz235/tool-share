@@ -261,5 +261,19 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ **BookingDetail**: shows `× N units` badge (`data-testid="booking-quantity-badge"`) when quantity > 1.
 - ✅ Tests (iter12): backend pytest 11/11 (booking validation, stock math, sold-out transitions, state filter); frontend E2E 1/1 (login → multi-unit tool → range → qty=2 → /bookings/:id).
 
+## 12n. Backend modular refactor (2026-02-12)
+- ✅ **server.py shrunk from ~1500 lines → ~70 lines** — now only wires routers, registers startup hooks, and applies CORS.
+- ✅ **New `core.py`**: single shared module for env config, Mongo client (`db`, `mongo_client`), auth deps (`current_user`, `optional_user`), all Pydantic models (User, Tool, Booking, Review, AIRecommendIn, ToolLocation), helpers (`hash_password`/`verify_password`, JWT, `serialize_user`, `haversine_km`, `_days_between`), booking-stock math (`_booked_qty_by_date`, `_max_booked_qty_in_range`), location obfuscation, object-storage helpers, and constants (`CATEGORIES`, `INSURANCE_TIERS`, `SUPPORTED_CURRENCIES`, `_DEFAULT_RATES`, `AI_*`).
+- ✅ **`routes/` package** — focused modules, each exposes a `router: APIRouter`:
+  - `routes/auth.py` — register, login, Google session, me, logout, profile, upload, files, public user
+  - `routes/tools.py` — categories, CRUD, search (with `state` filter + currency-aware price filter), unavailable_dates (with stock + availability map), my/tools
+  - `routes/bookings.py` — bookings CRUD + status updates (stock re-check on approve), purchases, insurance/tiers
+  - `routes/fx.py` — `/fx/rates` (cached 1h)
+  - `routes/social.py` — favorites + follows + reviews
+  - `routes/ai.py` — `/ai/quota` + `/ai/recommend` with prompt & quota helper
+- ✅ **P1 router** (`p1_features.py`) untouched — still receives `db`, `current_user_dep`, `get_user_by_id` via `build_p1_router(...)`.
+- ✅ Regression: all 11 iter12 pytest + 14 cross-feature pytest pass. Manual smoke covers every route group (auth, tools, bookings, favorites, fx, ai, admin/p1, multi-unit booking creation with correct pricing math).
+- ✅ Cleaned 5 orphan bookings whose tools had been removed in earlier reseeds (was causing a stale-data test failure unrelated to the refactor).
+
 ## 13. Prioritized Backlog
 
