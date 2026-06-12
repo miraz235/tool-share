@@ -197,6 +197,11 @@ export default function BookingDetail() {
                   <div className="flex gap-2 mb-2">
                     <Badge className={`${statusColor[booking.status]} border-0 capitalize`}>{booking.status}</Badge>
                     {booking.paid && <Badge className="bg-green-100 text-green-800 border-0">{t("booking.paid")}</Badge>}
+                    {booking.quantity > 1 && (
+                      <Badge className="bg-brand-primary/10 text-brand-primary border-0" data-testid="booking-quantity-badge">
+                        × {booking.quantity} {t("booking.units", "units")}
+                      </Badge>
+                    )}
                   </div>
                   <h1 className="font-heading text-3xl font-extrabold" data-testid="booking-title">{booking.tool?.title}</h1>
                 </div>

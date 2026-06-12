@@ -32,6 +32,8 @@
     "no_results": "Aucun résultat",
     "clear_filters": "Effacer les filtres",
     "city": "Ville",
+    "state": "Région / Province",
+    "postal_code": "Code postal",
     "country": "Amérique du Nord",
     "from": "de",
     "for": "pour",

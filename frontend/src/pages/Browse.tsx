@@ -129,6 +129,8 @@ export default function Browse() {
   const q = params.get("q") || "";
   const category = params.get("category") || "all";
   const city = params.get("city") || "";
+  const stateFilter = params.get("state") || "";
+  const postal = params.get("postal_code") || "";
   const listingType = (params.get("listing_type") || "all") as ListingTypeFilter;
 
   const [maxPriceUI, setMaxPriceUI] = useState<number>(
@@ -196,6 +198,8 @@ export default function Browse() {
     if (q) queryParams.q = q;
     if (category && category !== "all") queryParams.category = category;
     if (city) queryParams.city = city;
+    if (stateFilter) queryParams.state = stateFilter;
+    if (postal) queryParams.postal_code = postal;
     if (listingType && listingType !== "all") queryParams.listing_type = listingType;
     if (maxPrice && maxPrice < MAX_PRICE) {
       queryParams.max_price = maxPrice;
@@ -211,7 +215,7 @@ export default function Browse() {
     api.get<Tool[]>("/tools", { params: queryParams })
       .then((r) => setTools(r.data))
       .finally(() => setLoading(false));
-  }, [q, category, city, listingType, maxPrice, radiusKm, userLocation, searchCenter, viewerCurrency]);
+  }, [q, category, city, stateFilter, postal, listingType, maxPrice, radiusKm, userLocation, searchCenter, viewerCurrency]);
 
   const updateParam = (k: string, v: string) => {
     const p = new URLSearchParams(params);
@@ -292,7 +296,21 @@ export default function Browse() {
             placeholder={t("common.city")}
             defaultValue={city}
             onKeyDown={(e) => { if (e.key === "Enter") updateParam("city", e.currentTarget.value); }}
-            className="w-36 rounded-xl"
+            className="w-32 rounded-xl"
+          />
+          <Input
+            data-testid="browse-state-input"
+            placeholder={t("common.state", "State / Province")}
+            defaultValue={stateFilter}
+            onKeyDown={(e) => { if (e.key === "Enter") updateParam("state", e.currentTarget.value); }}
+            className="w-32 rounded-xl"
+          />
+          <Input
+            data-testid="browse-postal-input"
+            placeholder={t("common.postal_code", "ZIP / Postal")}
+            defaultValue={postal}
+            onKeyDown={(e) => { if (e.key === "Enter") updateParam("postal_code", e.currentTarget.value); }}
+            className="w-32 rounded-xl"
           />
 
           {/* Max price slider */}

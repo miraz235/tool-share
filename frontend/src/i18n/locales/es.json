@@ -32,6 +32,8 @@
     "no_results": "Sin resultados",
     "clear_filters": "Limpiar filtros",
     "city": "Ciudad",
+    "state": "Estado / Provincia",
+    "postal_code": "Código postal",
     "country": "Norteamérica",
     "from": "de",
     "for": "para",

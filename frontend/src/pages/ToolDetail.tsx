@@ -35,12 +35,17 @@ export default function ToolDetail() {
   const [insuranceTiers, setInsuranceTiers] = useState<Record<string, { daily_fee: number; label: string }>>({});
   const [buying, setBuying] = useState<boolean>(false);
   const [unavailableDates, setUnavailableDates] = useState<Set<string>>(new Set());
+  const [availability, setAvailability] = useState<Record<string, number>>({});
+  const [quantityTotal, setQuantityTotal] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number>(1);
 
   useEffect(() => {
     api.get(`/tools/${id}`).then(r => setTool(r.data)).catch(() => toast.error("Tool not found"));
     api.get(`/reviews`, { params: { tool_id: id } }).then(r => setReviews(r.data)).catch(() => {});
     api.get(`/tools/${id}/unavailable_dates`).then(r => {
       setUnavailableDates(new Set(r.data.dates || []));
+      setAvailability(r.data.availability || {});
+      setQuantityTotal(Math.max(1, parseInt(r.data.quantity_total) || 1));
     }).catch(() => {});
     api.get(`/insurance/tiers`).then(r => setInsuranceTiers(r.data)).catch(() => {});
   }, [id]);
@@ -52,6 +57,31 @@ export default function ToolDetail() {
     }).catch(() => {});
   }, [user, id]);
 
+  // Compute days/remaining-stock BEFORE the early return — keeps hooks in stable order.
+  const days = tool && dateRange?.from && dateRange?.to
+    ? Math.max(1, Math.round((dateRange.to.getTime() - dateRange.from.getTime()) / 86400000) + 1)
+    : 0;
+  const rangeRemaining = (() => {
+    if (!tool || !dateRange?.from || !dateRange?.to) return quantityTotal;
+    let minRemaining = quantityTotal;
+    const cur = new Date(dateRange.from);
+    while (cur <= dateRange.to) {
+      const iso = cur.toISOString().slice(0, 10);
+      const taken = availability[iso] !== undefined ? quantityTotal - availability[iso] : 0;
+      minRemaining = Math.min(minRemaining, quantityTotal - taken);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return Math.max(0, minRemaining);
+  })();
+
+  // Clamp the requested quantity whenever the date range or tool changes.
+  useEffect(() => {
+    if (quantity > rangeRemaining && rangeRemaining > 0) setQuantity(rangeRemaining);
+    if (rangeRemaining === 0 && quantity !== 1) setQuantity(1);
+    if (quantity < 1) setQuantity(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeRemaining]);
+
   if (!tool) {
     return (
       <div className="min-h-screen bg-brand-bg">
@@ -61,15 +91,20 @@ export default function ToolDetail() {
     );
   }
 
-  const days = dateRange?.from && dateRange?.to
-    ? Math.max(1, Math.round((dateRange.to.getTime() - dateRange.from.getTime()) / 86400000) + 1)
-    : 0;
-  const total = days * tool.daily_price;
+  const total = days * tool.daily_price * quantity;
 
   const submitBooking = async () => {
     if (!user) { nav("/login"); return; }
     if (!dateRange?.from || !dateRange?.to) {
       toast.error("Pick rental dates");
+      return;
+    }
+    if (quantity < 1) {
+      toast.error("Pick at least 1 unit");
+      return;
+    }
+    if (quantity > rangeRemaining) {
+      toast.error(`Only ${rangeRemaining} unit(s) available for those dates`);
       return;
     }
     setBooking(true);
@@ -82,6 +117,7 @@ export default function ToolDetail() {
         delivery_address: pickupMethod === "delivery" ? deliveryAddress : null,
         message_to_owner: message,
         insurance_tier: insuranceTier,
+        quantity,
       });
       toast.success("Booking request sent!");
       nav(`/bookings/${res.data.id}`);
@@ -278,7 +314,14 @@ export default function ToolDetail() {
               )}
 
               <div className="border border-brand-border rounded-xl p-3 mb-4">
-                <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("tool.rental_dates")}</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold">{t("tool.rental_dates")}</Label>
+                  {quantityTotal > 1 && (
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-brand-primary" data-testid="multi-unit-badge">
+                      {quantityTotal} {t("tool.units_available", "units total")}
+                    </span>
+                  )}
+                </div>
                 <Calendar
                   mode="range"
                   selected={dateRange as any}
@@ -286,14 +329,66 @@ export default function ToolDetail() {
                   disabled={(d) => {
                     if (d < new Date(new Date().setHours(0, 0, 0, 0))) return true;
                     const iso = d.toISOString().slice(0, 10);
+                    // Hard block only when fully sold out
                     return unavailableDates.has(iso);
                   }}
-                  modifiers={{ booked: (d) => unavailableDates.has(d.toISOString().slice(0, 10)) }}
-                  modifiersClassNames={{ booked: "line-through opacity-50" }}
+                  modifiers={{
+                    booked: (d) => unavailableDates.has(d.toISOString().slice(0, 10)),
+                    partial: (d) => {
+                      const iso = d.toISOString().slice(0, 10);
+                      const left = availability[iso];
+                      return left !== undefined && left > 0 && left < quantityTotal;
+                    },
+                  }}
+                  modifiersClassNames={{
+                    booked: "line-through opacity-50",
+                    partial: "ring-2 ring-brand-secondary/60 rounded-md font-semibold",
+                  }}
                   className="mt-2"
                   data-testid="booking-calendar"
                 />
+                {quantityTotal > 1 && (
+                  <div className="flex items-center gap-3 mt-2 text-[10px] text-brand-muted">
+                    <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm ring-2 ring-brand-secondary/60"></span> {t("tool.partial_stock", "Partial stock")}</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-brand-border line-through"></span> {t("tool.sold_out", "Sold out")}</span>
+                  </div>
+                )}
               </div>
+
+              {/* Quantity selector — only when the tool has multiple units */}
+              {quantityTotal > 1 && (
+                <div className="mb-4" data-testid="quantity-selector">
+                  <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-1 block">
+                    {t("tool.quantity_label", "How many units?")}
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center border border-brand-border rounded-xl overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        className="px-3 py-2 text-brand-text hover:bg-brand-subtle transition-colors font-bold disabled:opacity-30"
+                        disabled={quantity <= 1}
+                        data-testid="quantity-decrement-btn"
+                        aria-label="Decrease quantity"
+                      >−</button>
+                      <span className="px-4 font-heading font-bold text-base min-w-[2ch] text-center" data-testid="quantity-value">{quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.min(rangeRemaining || quantityTotal, q + 1))}
+                        className="px-3 py-2 text-brand-text hover:bg-brand-subtle transition-colors font-bold disabled:opacity-30"
+                        disabled={quantity >= (rangeRemaining || quantityTotal)}
+                        data-testid="quantity-increment-btn"
+                        aria-label="Increase quantity"
+                      >+</button>
+                    </div>
+                    <div className="text-xs text-brand-muted leading-tight">
+                      {dateRange?.from && dateRange?.to
+                        ? t("tool.qty_available_in_range", { remaining: rangeRemaining, total: quantityTotal, defaultValue: "{{remaining}} of {{total}} available for these dates" })
+                        : t("tool.qty_available_total", { total: quantityTotal, defaultValue: "Up to {{total}} per booking" })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mb-4">
                 <Label className="text-xs uppercase tracking-wider text-brand-muted font-bold mb-2 block">{t("tool.method")}</Label>
@@ -333,13 +428,13 @@ export default function ToolDetail() {
 
               {days > 0 && (
                 <div className="bg-brand-subtle rounded-xl p-4 mb-4 text-sm space-y-1">
-                  <div className="flex justify-between"><span>{format(tool.daily_price, { from: tool.price_currency })} × {days} {days > 1 ? t("common.days") : t("common.day")}</span><span>{format(total, { from: tool.price_currency })}</span></div>
+                  <div className="flex justify-between"><span>{format(tool.daily_price, { from: tool.price_currency })} × {days} {days > 1 ? t("common.days") : t("common.day")}{quantity > 1 ? ` × ${quantity}` : ''}</span><span>{format(total, { from: tool.price_currency })}</span></div>
                   {insuranceTier !== "none" && insuranceTiers[insuranceTier] && (
-                    <div className="flex justify-between text-brand-muted"><span>{t("tool.protection")} × {days}</span><span>{format(insuranceTiers[insuranceTier].daily_fee * days)}</span></div>
+                    <div className="flex justify-between text-brand-muted"><span>{t("tool.protection")} × {days}{quantity > 1 ? ` × ${quantity}` : ''}</span><span>{format(insuranceTiers[insuranceTier].daily_fee * days * quantity)}</span></div>
                   )}
-                  {tool.security_deposit > 0 && <div className="flex justify-between text-brand-muted"><span>{t("tool.deposit_label")}</span><span>{format(tool.security_deposit, { from: tool.price_currency })}</span></div>}
+                  {tool.security_deposit > 0 && <div className="flex justify-between text-brand-muted"><span>{t("tool.deposit_label")}{quantity > 1 ? ` × ${quantity}` : ''}</span><span>{format(tool.security_deposit * quantity, { from: tool.price_currency })}</span></div>}
                   <div className="border-t border-brand-border pt-2 mt-2 flex justify-between font-bold"><span>{t("common.total")}</span>
-                    <span>{format(total + (insuranceTiers[insuranceTier]?.daily_fee || 0) * days + (tool.security_deposit || 0), { from: tool.price_currency })}</span>
+                    <span>{format(total + (insuranceTiers[insuranceTier]?.daily_fee || 0) * days * quantity + (tool.security_deposit || 0) * quantity, { from: tool.price_currency })}</span>
                   </div>
                 </div>
               )}
@@ -365,10 +460,16 @@ export default function ToolDetail() {
                 </div>
               )}
 
-              <Button onClick={submitBooking} disabled={booking}
+              <Button onClick={submitBooking} disabled={booking || (dateRange?.from && dateRange?.to && rangeRemaining === 0)}
                 data-testid="request-booking-btn"
                 className="w-full bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold h-12">
-                {booking ? t("auth.signing_in") : user ? t("tool.request_to_book") : t("tool.sign_in_to_book")}
+                {booking
+                  ? t("auth.signing_in")
+                  : !user
+                    ? t("tool.sign_in_to_book")
+                    : (dateRange?.from && dateRange?.to && rangeRemaining === 0)
+                      ? t("tool.sold_out_for_dates", "Sold out for these dates")
+                      : t("tool.request_to_book")}
               </Button>
 
               {/* Buy option */}

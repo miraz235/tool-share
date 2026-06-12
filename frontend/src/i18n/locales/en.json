@@ -32,6 +32,8 @@
     "no_results": "No results",
     "clear_filters": "Clear filters",
     "city": "City",
+    "state": "State / Province",
+    "postal_code": "ZIP / Postal",
     "country": "North America",
     "from": "from",
     "for": "for",

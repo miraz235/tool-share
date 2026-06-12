@@ -32,6 +32,20 @@ CITY_CURRENCY = {
     "Sydney": "AUD",
 }
 
+# City → state/province/region. Used to populate `location.state` so the new
+# Browse "State / Province" filter has data to search against.
+CITY_STATE = {
+    "Toronto": "Ontario",
+    "Mississauga": "Ontario",
+    "Hamilton": "Ontario",
+    "New York": "New York",
+    "Miami": "Florida",
+    "Mexico City": "CDMX",
+    "London": "Greater London",
+    "Paris": "Île-de-France",
+    "Sydney": "New South Wales",
+}
+
 DEMO_USERS = [
     {"name": "Marcus Chen", "email": "marcus@toolshare.demo", "city": "Toronto", "bio": "Weekend woodworker. Happy to lend!", "picture": "https://images.unsplash.com/photo-1598966739654-5e9a252d8c32?w=300&q=80"},
     {"name": "Sara Patel", "email": "sara@toolshare.demo", "city": "Toronto", "bio": "Renovation enthusiast. I take care of my tools.", "picture": "https://images.unsplash.com/photo-1548213238-0da7521bd6e0?w=300&q=80"},
@@ -103,7 +117,12 @@ async def main():
         # Match tool city to an owner from that city; fall back to any owner.
         owner = user_by_city.get(t["city"]) or next(iter(user_by_city.values()))
         currency = CITY_CURRENCY.get(t["city"], "USD")
+        state = CITY_STATE.get(t["city"])
         tid = f"tool_{uuid.uuid4().hex[:12]}"
+        # A handful of tools get multi-unit stock so the quantity feature is
+        # visible end-to-end without manual edits.
+        explicit_qty = t.get("quantity_total")
+        quantity_total = int(explicit_qty) if explicit_qty else (5 if i % 4 == 1 else 1)
         await db.tools.insert_one({
             "id": tid,
             "owner_id": owner,
@@ -115,11 +134,19 @@ async def main():
             "price_currency": currency,
             "condition": t["condition"],
             "images": [t["img"]],
-            "location": {"address": None, "city": t["city"], "postal_code": t["postal"], "lat": t["lat"], "lng": t["lng"]},
+            "location": {
+                "address": None,
+                "city": t["city"],
+                "state": state,
+                "postal_code": t["postal"],
+                "lat": t["lat"],
+                "lng": t["lng"],
+            },
             "pickup_available": True,
             "delivery_available": i % 3 == 0,
             "delivery_radius_km": 10 if i % 3 == 0 else 0,
             "unavailable_dates": [],
+            "quantity_total": quantity_total,
             "is_available": True,
             "is_sold": False,
             "is_featured": i < 3,  # First 3 tools are featured for demo

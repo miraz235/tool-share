@@ -142,6 +142,8 @@ class UpdateProfileIn(BaseModel):
 class ToolLocation(BaseModel):
     address: Optional[str] = None
     city: str
+    # State, province, region, or department (e.g., "CA", "California", "Île-de-France")
+    state: Optional[str] = None
     postal_code: Optional[str] = None
     lat: float
     lng: float
@@ -190,6 +192,9 @@ class BookingIn(BaseModel):
     delivery_address: Optional[str] = None
     message_to_owner: Optional[str] = None
     insurance_tier: Literal["none", "basic", "premium"] = "none"
+    # Number of identical units the renter wants to book.
+    # Must satisfy 1 <= quantity <= remaining stock on every day in the range.
+    quantity: int = Field(default=1, ge=1)
 
 
 class Booking(BaseModel):
@@ -201,6 +206,7 @@ class Booking(BaseModel):
     end_date: str
     total_price: float
     deposit: float
+    quantity: int = 1
     status: Literal["pending", "approved", "declined", "cancelled", "completed"] = "pending"
     pickup_method: str
     delivery_address: Optional[str] = None
@@ -571,6 +577,7 @@ async def list_tools(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     city: Optional[str] = None,
+    state: Optional[str] = None,
     postal_code: Optional[str] = None,
     lat: Optional[float] = None,
     lng: Optional[float] = None,
@@ -601,6 +608,8 @@ async def list_tools(
             filt.setdefault("daily_price", {})["$lte"] = max_price
     if city:
         filt["location.city"] = {"$regex": f"^{city}$", "$options": "i"}
+    if state:
+        filt["location.state"] = {"$regex": f"^{state}", "$options": "i"}
     if postal_code:
         filt["location.postal_code"] = {"$regex": f"^{postal_code}", "$options": "i"}
     if owner_id:
@@ -659,6 +668,7 @@ def _obfuscate_location(loc: dict) -> dict:
     safe_lng = round(lng, 2) if lng is not None else None
     return {
         "city": loc.get("city"),
+        "state": loc.get("state"),
         "lat": safe_lat,
         "lng": safe_lng,
         "address": None,
@@ -702,31 +712,64 @@ async def get_tool(tool_id: str, request: Request, authorization: Optional[str] 
 
 @api.get("/tools/{tool_id}/unavailable_dates")
 async def get_unavailable_dates(tool_id: str):
-    """Return a list of ISO date strings that are blocked due to existing bookings.
+    """Return dates that are fully sold-out, plus per-date remaining stock.
 
-    Includes any approved or paid (regardless of pending) range, plus tool.unavailable_dates.
+    A date is included in `dates` only when the total booked quantity on that
+    day has reached the tool's `quantity_total`. The frontend uses
+    `availability` to render partial-stock badges in the calendar.
     """
-    tool = await db.tools.find_one({"id": tool_id}, {"_id": 0, "unavailable_dates": 1})
+    tool = await db.tools.find_one(
+        {"id": tool_id},
+        {"_id": 0, "unavailable_dates": 1, "quantity_total": 1}
+    )
     if not tool:
         raise HTTPException(404, "Tool not found")
+    quantity_total = int(tool.get("quantity_total") or 1)
 
+    # Look ahead 12 months — enough for the calendar UI without scanning all bookings.
+    today = datetime.now(timezone.utc).date()
+    horizon_end = (today + timedelta(days=365)).isoformat()
     bookings = await db.bookings.find(
-        {"tool_id": tool_id, "status": {"$in": ["approved", "completed"]}},
-        {"_id": 0, "start_date": 1, "end_date": 1}
-    ).to_list(length=500)
+        {
+            "tool_id": tool_id,
+            "status": {"$in": ["pending", "approved"]},
+            "end_date": {"$gte": today.isoformat()},
+            "start_date": {"$lte": horizon_end},
+        },
+        {"_id": 0, "start_date": 1, "end_date": 1, "quantity": 1}
+    ).to_list(length=1000)
 
-    blocked = set(tool.get("unavailable_dates", []) or [])
+    booked_by_date: dict[str, int] = {}
     for b in bookings:
         try:
             s = datetime.fromisoformat(b["start_date"]).date()
             e = datetime.fromisoformat(b["end_date"]).date()
         except Exception:
             continue
-        cur = s
-        while cur <= e:
-            blocked.add(cur.isoformat())
-            cur = cur + timedelta(days=1)
-    return {"dates": sorted(blocked)}
+        qty = int(b.get("quantity") or 1)
+        d = max(s, today)
+        while d <= e:
+            iso = d.isoformat()
+            booked_by_date[iso] = booked_by_date.get(iso, 0) + qty
+            d = d + timedelta(days=1)
+
+    # Dates the owner explicitly blocked
+    owner_blocked = set(tool.get("unavailable_dates", []) or [])
+    # Dates that are sold out — every unit is taken
+    sold_out = {iso for iso, taken in booked_by_date.items() if taken >= quantity_total}
+    blocked = sorted(owner_blocked | sold_out)
+
+    # Per-date remaining stock map — only include dates with any booked quantity
+    # so the payload stays compact.
+    availability = {
+        iso: max(0, quantity_total - taken)
+        for iso, taken in booked_by_date.items()
+    }
+    return {
+        "dates": blocked,
+        "quantity_total": quantity_total,
+        "availability": availability,
+    }
 
 
 @api.put("/tools/{tool_id}")
@@ -772,6 +815,59 @@ INSURANCE_TIERS = {
     "basic": {"daily_fee": 8.0, "label": "Basic — $1,000 coverage"},
     "premium": {"daily_fee": 20.0, "label": "Premium — $5,000 coverage + theft"},
 }
+
+
+async def _booked_qty_by_date(tool_id: str, start: str, end: str,
+                               exclude_booking_id: Optional[str] = None) -> dict:
+    """Return {iso_date: total_qty_booked} for [start, end] inclusive.
+
+    Counts pending + approved bookings (these hold inventory). Declined/cancelled
+    bookings free their stock back.
+    """
+    try:
+        s = datetime.fromisoformat(start).date()
+        e = datetime.fromisoformat(end).date()
+    except Exception:
+        return {}
+    q = {
+        "tool_id": tool_id,
+        "status": {"$in": ["pending", "approved"]},
+        # Bookings that overlap the requested window
+        "start_date": {"$lte": end},
+        "end_date": {"$gte": start},
+    }
+    if exclude_booking_id:
+        q["id"] = {"$ne": exclude_booking_id}
+    cur = db.bookings.find(q, {"_id": 0, "start_date": 1, "end_date": 1, "quantity": 1})
+    bookings = await cur.to_list(length=1000)
+    out: dict[str, int] = {}
+    cur_d = s
+    while cur_d <= e:
+        out[cur_d.isoformat()] = 0
+        cur_d = cur_d + timedelta(days=1)
+    for b in bookings:
+        try:
+            bs = datetime.fromisoformat(b["start_date"]).date()
+            be = datetime.fromisoformat(b["end_date"]).date()
+        except Exception:
+            continue
+        qty = int(b.get("quantity") or 1)
+        # Clamp to the window we're aggregating
+        overlap_start = max(bs, s)
+        overlap_end = min(be, e)
+        d = overlap_start
+        while d <= overlap_end:
+            iso = d.isoformat()
+            out[iso] = out.get(iso, 0) + qty
+            d = d + timedelta(days=1)
+    return out
+
+
+async def _max_booked_qty_in_range(tool_id: str, start: str, end: str,
+                                    exclude_booking_id: Optional[str] = None) -> int:
+    """Peak concurrent booked quantity across the requested range."""
+    by_date = await _booked_qty_by_date(tool_id, start, end, exclude_booking_id)
+    return max(by_date.values()) if by_date else 0
 
 
 # -----------------------------------------------------------------------------
@@ -873,13 +969,20 @@ async def create_booking(payload: BookingIn, user: dict = Depends(current_user))
         raise HTTPException(400, "Cannot book your own tool")
     if payload.start_date > payload.end_date:
         raise HTTPException(400, "End date must be after start date")
-    if await has_booking_conflict(db, payload.tool_id, payload.start_date, payload.end_date):
-        raise HTTPException(409, "Tool already booked for these dates")
+    quantity_total = int(tool.get("quantity_total") or 1)
+    qty = max(1, int(payload.quantity or 1))
+    if qty > quantity_total:
+        raise HTTPException(400, f"Only {quantity_total} unit(s) available for this tool")
+    # Stock-aware availability check: peak overlap across the requested date range.
+    peak = await _max_booked_qty_in_range(payload.tool_id, payload.start_date, payload.end_date)
+    if peak + qty > quantity_total:
+        remaining = max(0, quantity_total - peak)
+        raise HTTPException(409, f"Not enough units available — {remaining} of {quantity_total} left for those dates")
     days = _days_between(payload.start_date, payload.end_date)
-    rental = days * float(tool["daily_price"])
-    insurance_fee = days * INSURANCE_TIERS.get(payload.insurance_tier, INSURANCE_TIERS["none"])["daily_fee"]
+    rental = days * float(tool["daily_price"]) * qty
+    insurance_fee = days * INSURANCE_TIERS.get(payload.insurance_tier, INSURANCE_TIERS["none"])["daily_fee"] * qty
     total = rental + insurance_fee
-    deposit = float(tool.get("security_deposit", 0))
+    deposit = float(tool.get("security_deposit", 0)) * qty
     booking_id = f"bk_{uuid.uuid4().hex[:12]}"
     doc = {
         "id": booking_id,
@@ -888,6 +991,7 @@ async def create_booking(payload: BookingIn, user: dict = Depends(current_user))
         "owner_id": tool["owner_id"],
         "start_date": payload.start_date,
         "end_date": payload.end_date,
+        "quantity": qty,
         "total_price": total,
         "deposit": deposit,
         "rental_price": rental,
@@ -907,7 +1011,7 @@ async def create_booking(payload: BookingIn, user: dict = Depends(current_user))
         await send_email_mocked(
             owner["email"],
             f"New booking request for {tool['title']}",
-            f"{user['name']} requested {tool['title']} from {payload.start_date} to {payload.end_date}.",
+            f"{user['name']} requested {qty}× {tool['title']} from {payload.start_date} to {payload.end_date}.",
             db=db
         )
     doc.pop("_id", None)
@@ -950,10 +1054,20 @@ async def update_booking_status(booking_id: str, payload: BookingStatusIn, user:
         raise HTTPException(403, "Only owner can approve/decline")
     if payload.status == "cancelled" and user["id"] not in (b["renter_id"], b["owner_id"]):
         raise HTTPException(403, "Forbidden")
-    # Re-check overlap before approving (a different request may have been approved meanwhile)
+    # Re-check stock before approving — another booking may have been approved meanwhile.
     if payload.status == "approved":
-        if await has_booking_conflict(db, b["tool_id"], b["start_date"], b["end_date"], exclude_booking_id=booking_id):
-            raise HTTPException(409, "Another approved booking conflicts with these dates")
+        tool = await db.tools.find_one({"id": b["tool_id"]}, {"_id": 0, "quantity_total": 1})
+        quantity_total = int((tool or {}).get("quantity_total") or 1)
+        qty = int(b.get("quantity") or 1)
+        peak = await _max_booked_qty_in_range(
+            b["tool_id"], b["start_date"], b["end_date"], exclude_booking_id=booking_id
+        )
+        if peak + qty > quantity_total:
+            remaining = max(0, quantity_total - peak)
+            raise HTTPException(
+                409,
+                f"Cannot approve — only {remaining} of {quantity_total} units free for these dates"
+            )
     await db.bookings.update_one(
         {"id": booking_id},
         {"$set": {"status": payload.status, "updated_at": now_iso()}}

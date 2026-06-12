@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 12 — Multi-unit tool listings + location state filter. 11/11 backend pytest tests pass and full frontend E2E flow (login → multi-unit tool → date range → qty=2 → request booking → /bookings/:id with quantity badge) succeeds with correct linear pricing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration12_multiunit.py",
+    "/app/test_reports/pytest/iteration12.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "_booked_qty_by_date / _max_booked_qty_in_range correctly count pending+approved; declined/cancelled bookings free stock back — verified by sequential booking test.",
+    "create_booking and update_booking_status/approve both call peak-day check — defends against race on approve. Approve excludes self via exclude_booking_id — correct.",
+    "GET /api/tools/{id}/unavailable_dates has a 365-day horizon — long-tail bookings beyond a year aren't shown in calendar. Acceptable for rental UX, but worth a comment for future devs. (Tests adjusted to use dates within 365 days.)",
+    "ToolDetail quantity-selector is rendered even before a date range is selected (test observed it visible pre-date). Spec said 'after picking a date range' — minor UX divergence, not a regression. Worth confirming with PM.",
+    "ipapi.co geolocation fetch is blocked by CORS in sandbox — silent fallback to USD works (pre-existing, see iter11 notes). Not a regression."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration12_multiunit.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 pytest)",
+    "frontend": "100% (all assertions passed in single E2E run)"
+  },
+  "test_credentials": "sara@toolshare.demo / demo1234 (renter), diego@toolshare.demo / demo1234 (owner of Pressure Washer)",
+  "seed_data_creation": "Tests create TEST_-prefixed tools (auto-deleted) and far-future bookings (cancelled after assertion). All seeded demo tools left intact.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pressure Washer 2000 PSI tool_id observed = tool_2b87967933dd (Mississauga, owned by Diego, quantity_total=5). The /api/tools state filter uses case-insensitive PREFIX match (regex ^state) on location.state. Backend treats missing quantity_total as 1 (no crash). The unavailable_dates endpoint has a 365-day horizon. Frontend ToolDetail renders quantity-selector even before a date range is chosen; quantity_value defaults to 1 and increments to N (1..quantity_total). booking-quantity-badge appears as '× N units' when booking.quantity > 1.",
+  "rca of the issue": "No bugs found. One observation: spec says quantity-selector should appear AFTER date range is picked, but currently it renders unconditionally on multi-unit tool detail page. Functionally harmless because the booking endpoint validates qty vs. range stock server-side."
+}

@@ -31,12 +31,14 @@ export default function ListTool() {
     daily_price: "",
     price_currency: viewerCurrency,
     security_deposit: "",
+    quantity_total: 1,
     condition: "Good",
     pickup_available: true,
     delivery_available: false,
     delivery_radius_km: 10,
     address: "",
     city: "",
+    state: "",
     postal_code: "",
     lat: "",
     lng: "",
@@ -84,10 +86,12 @@ export default function ListTool() {
         price_currency: form.price_currency,
         security_deposit: parseFloat(form.security_deposit || 0),
         condition: form.condition,
+        quantity_total: Math.max(1, parseInt(String(form.quantity_total)) || 1),
         images,
         location: {
           address: form.address,
           city: form.city,
+          state: form.state || null,
           postal_code: form.postal_code,
           lat: parseFloat(form.lat),
           lng: parseFloat(form.lng),
@@ -217,6 +221,30 @@ export default function ListTool() {
             </div>
           </section>
 
+          {/* Inventory / stock */}
+          <section>
+            <Label className="font-bold">{t("list_tool.quantity_total", "How many units do you have?")}</Label>
+            <div className="flex items-center gap-3 mt-1">
+              <Input
+                type="number"
+                min="1"
+                max="99"
+                value={form.quantity_total}
+                onChange={e => upd("quantity_total", Math.max(1, parseInt(e.target.value) || 1))}
+                data-testid="quantity-total-input"
+                className="rounded-xl w-32"
+              />
+              <p className="text-xs text-brand-muted leading-snug">
+                {t("list_tool.quantity_hint", "Renters can book up to this many at once. Each booking decreases availability for the selected dates only.")}
+              </p>
+            </div>
+            {form.quantity_total > 1 && (
+              <div className="mt-3 bg-brand-subtle border border-brand-border rounded-xl px-3 py-2 text-xs text-brand-muted" data-testid="quantity-preview-hint">
+                {t("list_tool.quantity_preview", "Listings with multiple units show a per-date stock badge on the booking calendar — renters see partial availability instead of a blocked-out date.")}
+              </div>
+            )}
+          </section>
+
           {/* Location */}
           <section className="space-y-4">
             <div>
@@ -225,9 +253,11 @@ export default function ListTool() {
             </div>
             <Input placeholder={t("list_tool.street")} value={form.address} onChange={e => upd("address", e.target.value)}
               className="rounded-xl" data-testid="address-input"/>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <Input placeholder={`${t("common.city")} *`} value={form.city} onChange={e => upd("city", e.target.value)}
                 className="rounded-xl" data-testid="city-input"/>
+              <Input placeholder={t("common.state", "State / Province")} value={form.state} onChange={e => upd("state", e.target.value)}
+                className="rounded-xl" data-testid="state-input"/>
               <Input placeholder={t("list_tool.postal_code")} value={form.postal_code} onChange={e => upd("postal_code", e.target.value)}
                 className="rounded-xl" data-testid="postal-input"/>
             </div>
