@@ -35,12 +35,21 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 
 ### tools
 ```
-{ id, owner_id, title, description, category, daily_price, security_deposit, condition, images[], location: {address, city, postal_code, lat, lng}, pickup_available, delivery_available, delivery_radius_km, unavailable_dates[], is_available, view_count, rating_avg, rating_count, created_at }
+{ id, owner_id, title, description, category, daily_price, security_deposit, condition, images[],
+  location: {address, city, state, postal_code, lat, lng},
+  pickup_available, delivery_available, delivery_radius_km, unavailable_dates[],
+  quantity_total (int, default 1 — number of identical units in stock),
+  price_currency, listing_type, sale_price, is_featured,
+  is_available, view_count, rating_avg, rating_count, created_at }
 ```
 
 ### bookings
 ```
-{ id, tool_id, renter_id, owner_id, start_date, end_date, total_price, deposit, status, pickup_method, delivery_address, message_to_owner, created_at, updated_at }
+{ id, tool_id, renter_id, owner_id, start_date, end_date,
+  quantity (int, default 1),
+  total_price, deposit, rental_price, insurance_tier, insurance_fee,
+  status, pickup_method, delivery_address, message_to_owner,
+  paid, created_at, updated_at }
 ```
 
 ### reviews
@@ -242,6 +251,15 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ Localized titles for non-English cities (Échafaudage Pliant 2m, Taladro Inalámbrico DeWalt, Pulidora Bosch).
 - ✅ Verified live: in EUR view the Browse grid renders 19 cards with prices like "11 €/day (Toronto)", "13 €/day (Mexico City)", "7 €/day + 175 € to buy (London)" — cross-currency conversion working transparently.
 - ✅ Cleaned up 6 stale `TEST_iter*` tools from prior test runs.
+
+## 12m. Multi-unit inventory + State/Province filter (2026-02-12)
+- ✅ **Multi-unit tool listings**: Tools now carry `quantity_total` (default 1). Owners set max stock on the listing form (`data-testid="quantity-total-input"`). Bookings carry a `quantity` (default 1) that scales total_price, deposit, and insurance fees linearly.
+- ✅ **Stock-aware availability**: New backend helpers `_booked_qty_by_date` / `_max_booked_qty_in_range` compute peak concurrent occupancy across the requested range. `POST /api/bookings` and `PUT /api/bookings/:id/status` (approve) both 409 when `peak + qty > quantity_total`, with detail `Not enough units available — X of Y left`.
+- ✅ **Calendar UX**: `GET /api/tools/:id/unavailable_dates` now returns `{dates, quantity_total, availability}`. Only fully sold-out days appear in `dates`; partial-stock days are styled with a ring on the calendar. ToolDetail booking card shows a +/− quantity selector clamped to remaining stock for the picked range and a "Sold out for these dates" disabled state.
+- ✅ **State / Province filter**: Tool location gains `state` (Ontario, New York, CDMX, Île-de-France, etc.). `GET /api/tools` supports `state=<value>` (case-insensitive prefix). Browse filter bar has new inputs (`data-testid="browse-state-input"`, `browse-postal-input`) alongside city. ListTool form has a matching `state-input`.
+- ✅ **Seed update**: `seed_demo.py` adds `CITY_STATE` map, stamps `state` on every demo tool, and gives every 4th tool `quantity_total=5` (Bosch Circular Saw, Pressure Washer 2000 PSI, Festool Plunge Saw, Paint Sprayer HVLP).
+- ✅ **BookingDetail**: shows `× N units` badge (`data-testid="booking-quantity-badge"`) when quantity > 1.
+- ✅ Tests (iter12): backend pytest 11/11 (booking validation, stock math, sold-out transitions, state filter); frontend E2E 1/1 (login → multi-unit tool → range → qty=2 → /bookings/:id).
 
 ## 13. Prioritized Backlog
 
