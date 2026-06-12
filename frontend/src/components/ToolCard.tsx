@@ -14,11 +14,13 @@ interface ToolCardProps {
 
 export default function ToolCard({ tool, onToggleFavorite, isFavorite }: ToolCardProps) {
   const { t } = useTranslation();
-  const { format } = useCurrency();
+  const { format, currency: viewerCurrency } = useCurrency();
   const [imgError, setImgError] = useState<boolean>(false);
   const fallback = "https://images.unsplash.com/photo-1563440205176-c565cd7302e4?w=800&q=80&auto=format";
   const img = !imgError && tool.images?.[0] ? imageUrl(tool.images[0]) : fallback;
   const forSale = tool.listing_type === "sell" || tool.listing_type === "both";
+  const native = (tool.price_currency || "USD").toUpperCase();
+  const showNativeHint = native !== viewerCurrency;
 
   return (
     <Link
@@ -87,6 +89,15 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }: ToolCar
             <div className="text-xs font-semibold text-brand-primary">{format(tool.sale_price, { from: tool.price_currency })} {t("common.buy")}</div>
           )}
         </div>
+        {showNativeHint && (
+          <div
+            className="mt-1 text-[10px] uppercase tracking-wider font-bold text-brand-muted/80"
+            title={t("common.native_price_tooltip", { currency: native })}
+            data-testid={`tool-native-${tool.id}`}
+          >
+            ≈ {tool.daily_price} {native} {t("common.native_label")}
+          </div>
+        )}
       </div>
     </Link>
   );

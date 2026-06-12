@@ -46,7 +46,9 @@
     "for_sale": "En venta",
     "buy": "para comprar",
     "joined": "Se unió",
-    "reviews_count": "reseñas"
+    "reviews_count": "reseñas",
+    "native_label": "publicado",
+    "native_price_tooltip": "Precio publicado en {{currency}} por el dueño"
   },
   "landing": {
     "tagline": "La comunidad de alquiler de herramientas de Norteamérica",

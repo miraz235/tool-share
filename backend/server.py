@@ -165,6 +165,9 @@ class ToolIn(BaseModel):
     sale_price: float = 0
     # Currency the owner authored the price in. Display layer converts to viewer currency.
     price_currency: Literal["USD", "CAD", "EUR", "GBP", "MXN", "AUD"] = "USD"
+    # Stock — number of identical units the owner has of this tool. 1 = one-of-a-kind.
+    # Multiple lets renters book a quantity; we decrement the running availability.
+    quantity_total: int = 1
 
 
 class Tool(ToolIn):
