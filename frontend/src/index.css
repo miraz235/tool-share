@@ -48,7 +48,8 @@ body {
 @layer base {
     * { @apply border-border; }
     body { @apply bg-brand-bg text-brand-text; }
-    h1, h2, h3, h4, h5, h6 { font-family: 'Manrope', sans-serif; color: #0F172A; }
+    /* Inherit so headings adopt their parent's text color (works on dark CTAs). */
+    h1, h2, h3, h4, h5, h6 { font-family: 'Manrope', sans-serif; color: inherit; }
 }
 
 @layer utilities {
