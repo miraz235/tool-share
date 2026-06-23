@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { imageUrl } from "@/lib/api";
 import { useCurrency } from "@/lib/currency";
-import { Heart, MapPin, Star, Sparkles, Tag } from "lucide-react";
+import { Heart, MapPin, Star, Sparkles, Tag, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import type { Tool } from "@/types";
 
@@ -79,6 +79,15 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }: ToolCar
           <span>{tool.location?.city}</span>
           <span className="mx-1.5">·</span>
           <span className="capitalize">{tool.condition}</span>
+          {tool.owner_verified && (
+            <span
+              className="ml-auto inline-flex items-center gap-0.5 text-green-700 font-semibold"
+              data-testid={`tool-verified-${tool.id}`}
+              title={t("common.verified_owner", "Verified owner")}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" /> {t("common.verified", "Verified")}
+            </span>
+          )}
         </div>
         <div className="flex items-baseline justify-between gap-2">
           <div className="flex items-baseline gap-1">

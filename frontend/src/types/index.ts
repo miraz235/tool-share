@@ -63,6 +63,8 @@ export interface Tool {
   distance_km?: number;
   /** Only set on /api/favorites response. */
   alerts_on?: boolean;
+  /** Stamped by GET /api/tools when the owner is verified — drives the card badge. */
+  owner_verified?: boolean;
   /** Only set on /api/admin/tools. */
   owner_name?: string;
 }

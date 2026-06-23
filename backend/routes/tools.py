@@ -71,6 +71,7 @@ async def list_tools(
     radius_km: float = 50.0,
     owner_id: Optional[str] = None,
     featured_only: bool = False,
+    verified_only: bool = False,
     viewer_currency: Optional[str] = None,
     limit: int = 60,
 ):
@@ -101,9 +102,22 @@ async def list_tools(
         filt["owner_id"] = owner_id
     if featured_only:
         filt["is_featured"] = True
+    if verified_only:
+        # Restrict to tools owned by verified users.
+        verified_owner_ids = await db.users.distinct("id", {"is_verified": True})
+        filt["owner_id"] = {"$in": verified_owner_ids}
 
     cur = db.tools.find(filt, {"_id": 0}).sort([("is_featured", -1), ("created_at", -1)]).limit(limit)
     tools = await cur.to_list(length=limit)
+
+    # Stamp a quick verified flag on each tool for card-level rendering.
+    owner_ids_in_results = list({t.get("owner_id") for t in tools if t.get("owner_id")})
+    if owner_ids_in_results:
+        verified_ids = set(await db.users.distinct(
+            "id", {"id": {"$in": owner_ids_in_results}, "is_verified": True}
+        ))
+        for t in tools:
+            t["owner_verified"] = t.get("owner_id") in verified_ids
 
     if viewer_currency and (min_price is not None or max_price is not None):
         vc = viewer_currency.upper()

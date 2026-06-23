@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, Package, Calendar, DollarSign, AlertCircle, ShieldCheck, Search, Mail, Star, EyeOff, Eye } from "lucide-react";
+import { Users, Package, Calendar, DollarSign, AlertCircle, ShieldCheck, ShieldAlert, Search, Mail, Star, EyeOff, Eye, FileCheck2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateRange, formatDate, formatDateTime } from "@/lib/dateFormat";
+import { imageUrl } from "@/lib/api";
 
 export default function Admin() {
   const { user, loading } = useAuth();
@@ -26,6 +27,9 @@ export default function Admin() {
   const [tools, setTools] = useState([]);
   const [emails, setEmails] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [identitySubs, setIdentitySubs] = useState<any[]>([]);
+  const [identityFilter, setIdentityFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [reviewNote, setReviewNote] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -39,6 +43,32 @@ export default function Admin() {
     api.get("/admin/tools").then(r => setTools(r.data));
     api.get("/admin/email_log").then(r => setEmails(r.data));
     api.get("/admin/reviews").then(r => setReviews(r.data)).catch(() => {});
+    refreshIdentity();
+  };
+
+  const refreshIdentity = () => {
+    api.get("/admin/identity/queue", { params: { status: identityFilter } })
+      .then(r => setIdentitySubs(r.data))
+      .catch(() => {});
+  };
+
+  useEffect(() => { if (user?.is_admin) refreshIdentity(); }, [identityFilter, user]);
+
+  const reviewIdentity = async (subId: string, decision: "approved" | "rejected") => {
+    const note = (reviewNote[subId] || "").trim();
+    if (decision === "rejected" && !note) {
+      toast.error(t("admin.identity.note_required", "Please add a note explaining the rejection."));
+      return;
+    }
+    try {
+      await api.post(`/admin/identity/${subId}/review`, { decision, admin_note: note || undefined });
+      toast.success(t("admin.identity.reviewed", "Submission " + decision));
+      setReviewNote({ ...reviewNote, [subId]: "" });
+      refreshIdentity();
+      api.get("/admin/users", { params: search ? { q: search } : {} }).then(r => setUsers(r.data));
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || "Failed");
+    }
   };
 
   useEffect(() => { if (user?.is_admin) refresh(); }, [user]);
@@ -115,6 +145,14 @@ export default function Admin() {
             </TabsTrigger>
             <TabsTrigger value="reviews" data-testid="admin-tab-reviews" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
               <Star className="w-4 h-4 mr-1.5" /> {t("admin.tab_reviews")}
+            </TabsTrigger>
+            <TabsTrigger value="identity" data-testid="admin-tab-identity" className="rounded-lg data-[state=active]:bg-brand-primary data-[state=active]:text-white">
+              <FileCheck2 className="w-4 h-4 mr-1.5" /> {t("admin.tab_identity", "Identity")}
+              {identitySubs.filter(s => s.status === "pending").length > 0 && (
+                <span data-testid="admin-identity-pending-count" className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                  {identitySubs.filter(s => s.status === "pending").length}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -318,6 +356,104 @@ export default function Admin() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="identity">
+            <div className="bg-white rounded-2xl border border-brand-border overflow-hidden">
+              <div className="p-4 border-b border-brand-border flex items-center gap-2 flex-wrap">
+                <div className="font-heading text-lg font-bold mr-auto">{t("admin.identity.title", "Identity verification queue")}</div>
+                {(["pending", "approved", "rejected", "all"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setIdentityFilter(s)}
+                    data-testid={`admin-identity-filter-${s}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${
+                      identityFilter === s
+                        ? "bg-brand-primary text-white"
+                        : "bg-brand-subtle text-brand-muted hover:text-brand-text"
+                    }`}
+                  >
+                    {t(`admin.identity.filter_${s}`, s)}
+                  </button>
+                ))}
+              </div>
+              <div className="divide-y divide-brand-border">
+                {identitySubs.length === 0 && (
+                  <div className="p-12 text-center text-brand-muted" data-testid="admin-identity-empty">
+                    {t("admin.identity.empty", "No submissions in this view.")}
+                  </div>
+                )}
+                {identitySubs.map((s) => (
+                  <div key={s.id} className="p-4 flex flex-col md:flex-row gap-4" data-testid={`admin-identity-row-${s.id}`}>
+                    <div className="flex gap-3 md:flex-1 min-w-0">
+                      <div className="grid grid-cols-2 gap-1.5 shrink-0">
+                        <a href={imageUrl(s.id_document_path)} target="_blank" rel="noreferrer" data-testid={`admin-identity-doc-${s.id}`}>
+                          <img src={imageUrl(s.id_document_path)} alt="ID" className="w-20 h-20 rounded-lg object-cover border border-brand-border hover:ring-2 ring-brand-primary transition" />
+                        </a>
+                        <a href={imageUrl(s.selfie_path)} target="_blank" rel="noreferrer" data-testid={`admin-identity-selfie-${s.id}`}>
+                          <img src={imageUrl(s.selfie_path)} alt="Selfie" className="w-20 h-20 rounded-lg object-cover border border-brand-border hover:ring-2 ring-brand-primary transition" />
+                        </a>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-heading font-bold text-brand-text truncate">{s.full_name}</div>
+                        <div className="text-xs text-brand-muted truncate">{s.user_email}</div>
+                        <div className="text-xs mt-1.5 space-y-0.5">
+                          <div><span className="text-brand-muted">{t("verify.id_type", "ID type")}:</span> <span className="font-medium capitalize">{s.id_type.replace("_", " ")}</span></div>
+                          <div><span className="text-brand-muted">{t("admin.identity.last4", "Number ends in")}:</span> <span className="font-mono font-medium">{s.id_number_last4}</span></div>
+                          <div className="text-brand-muted">{formatDateTime(s.submitted_at, i18n.language)}</div>
+                        </div>
+                        <div className="mt-2">
+                          {s.status === "pending" && (
+                            <Badge className="bg-amber-100 text-amber-800 border-0 gap-1">
+                              <Clock className="w-3 h-3" /> {t("verify.status_pending", "Under review")}
+                            </Badge>
+                          )}
+                          {s.status === "approved" && (
+                            <Badge className="bg-green-100 text-green-800 border-0 gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> {t("verify.status_approved", "Approved")}
+                            </Badge>
+                          )}
+                          {s.status === "rejected" && (
+                            <Badge className="bg-red-100 text-red-800 border-0 gap-1">
+                              <XCircle className="w-3 h-3" /> {t("verify.status_rejected", "Rejected")}
+                            </Badge>
+                          )}
+                          {s.admin_note && <div className="text-xs mt-1 italic text-brand-muted">"{s.admin_note}"</div>}
+                        </div>
+                      </div>
+                    </div>
+                    {s.status === "pending" && (
+                      <div className="md:w-72 space-y-2 shrink-0">
+                        <Input
+                          value={reviewNote[s.id] || ""}
+                          onChange={(e) => setReviewNote({ ...reviewNote, [s.id]: e.target.value })}
+                          placeholder={t("admin.identity.note_placeholder", "Optional note (required for reject)")}
+                          data-testid={`admin-identity-note-${s.id}`}
+                          className="rounded-xl text-sm"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => reviewIdentity(s.id, "approved")}
+                            data-testid={`admin-identity-approve-${s.id}`}
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl"
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-1" /> {t("admin.identity.approve", "Approve")}
+                          </Button>
+                          <Button
+                            onClick={() => reviewIdentity(s.id, "rejected")}
+                            data-testid={`admin-identity-reject-${s.id}`}
+                            variant="outline"
+                            className="flex-1 rounded-xl border-red-300 text-red-700 hover:bg-red-50"
+                          >
+                            <XCircle className="w-4 h-4 mr-1" /> {t("admin.identity.reject", "Reject")}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </TabsContent>
         </Tabs>

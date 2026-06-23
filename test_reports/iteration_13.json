@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration 13 — Tested self-hosted Identity Verification (submit/status/admin queue/review), verified_only filter + owner_verified flag, and Recently-searched persistence. All 13 backend pytest cases passed (100%). Frontend flows verified: verify dialog opens with all form fields, /api/identity/verify/submit works end-to-end, pending banner appears, verified badges render on 17/19 tool cards, browse-verified-toggle sets URL + chip, Recently-searched row appears with 3 chips capped and persists after refresh, Admin Identity tab + filter buttons all present. One UI label nit: dashboard verify button still labeled 'Verify with Stripe' even though Stripe code was replaced with self-hosted flow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Dashboard verify banner",
+        "issue": "Button text still says 'Verify with Stripe' even though Stripe was replaced with the self-hosted IDV flow. Should be 'Verify identity' (or i18n equivalent). The data-testid is also `start-verification-btn` (no 'verify' word) — review request implies a 'Verify' button. Functionality works (clicking opens verify-dialog), only labeling is stale.",
+        "selector": "[data-testid='start-verification-btn']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Global",
+        "issues": ["Repeated console errors from https://ipapi.co/json/ (CORS blocked). Geo-IP lookup is failing silently for every page load — consider catching/removing or routing through backend. Not related to identity feature but adds noise to logs."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration13_identity.py",
+    "/app/test_reports/pytest/iter13_results.xml"
+  ],
+  "action_items": [
+    "Rename dashboard verify button from 'Verify with Stripe' to 'Verify identity' (or matching i18n key) — the Stripe word is misleading now that the flow is fully self-hosted.",
+    "(Optional) Rename data-testid `start-verification-btn` → `dashboard-verify-btn` (or add a `verify-btn` alias) so future Playwright scripts following the review-request naming work.",
+    "(Optional) Fix ipapi.co CORS noise — wrap geo-IP lookup in try/catch and proxy via backend."
+  ],
+  "critical_code_review_comments": [
+    "Backend p1_features.py is 591 lines and growing — consider splitting identity verification into a separate module (identity.py) for maintainability.",
+    "Self-hosted IDV submission does NOT verify that id_document_path/selfie_path actually exist on disk or were uploaded by the same user. A malicious client could submit arbitrary paths. Recommend validating that paths begin with the expected /uploads/ prefix and (optionally) checking ownership via a small uploads metadata table.",
+    "id_number is stored in plaintext on the submission doc — only the hash field (id_number_hash) is privacy-protected and excluded from responses. Either drop the full id_number entirely after capturing last4+hash, or encrypt it at rest.",
+    "On rejection the user can NOT resubmit because /identity/verify/submit only handles the 'pending' replace-case and the not-started flow — but a rejected user has verification_status='rejected' and no pending submission, so the next submit creates a fresh pending doc. Confirmed working in the rejection test, but the flow relies on the UI clearing local state via `setStatus('not_started')` in VerifyIdentityDialog. Worth a dedicated backend test for the rejected→resubmit happy path.",
+    "Admin queue endpoint defaults to status='pending' and limits to 200 with no pagination — fine for now but document the cap.",
+    "Frontend recentSearches.ts: localStorage write is unguarded for quota errors only — JSON.parse on read silently returns []. Consider logging when storage is unavailable (e.g., Safari private mode)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration13_identity.py (new)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "~95% — all data-testids and flows confirmed; one button label is stale"},
+  "test_credentials": "admin@toolshare.demo / Admin1234! (admin), fresh registered users created during test via /api/auth/register",
+  "seed_data_creation": "Test created 2 fresh users iv_test_*@toolshare.demo and iv_rej_*@toolshare.demo and one iv_dlg_*@toolshare.demo via /api/auth/register and submitted+reviewed identity for them; their submissions are now in identity_submissions collection (one approved, one rejected, one pending).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend identity verification feature is fully working (submit/status/queue/review). Use /app/backend/tests/test_iteration13_identity.py as regression — pass `REACT_APP_BACKEND_URL=<url>` env var before running. The dashboard button label 'Verify with Stripe' is stale — main agent should update that copy. Frontend testids confirmed working: verify-dialog, verify-form, verify-id-type-select, verify-name-input, verify-id-number-input, verify-upload-id, verify-upload-selfie, verify-submit-btn, verify-pending-state; browse-verified-toggle, browse-chip-verified_only, tool-verified-{tool.id}; browse-recent-toggle, browse-recent-chip-{id}; admin-tab-identity, admin-identity-filter-{pending|approved|rejected|all}. The pending-count badge wasn't visible because there were no pending submissions in queue at the time of the admin test (all auto-approved/rejected by the backend test fixtures).",
+  "rca of the issue": "Dashboard verify button label is leftover from the previous Stripe Identity stub implementation. The Stripe code was removed but the i18n key (or hardcoded string) for the button text was not updated. Fix: update the relevant translation key (likely `dashboard.verify_button` or similar) and any hardcoded 'Verify with Stripe' literal in Dashboard.tsx."
+}

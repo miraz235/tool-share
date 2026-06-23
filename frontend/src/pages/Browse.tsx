@@ -12,9 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal, Compass, Loader2, Crosshair, X } from "lucide-react";
+import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal, Compass, Loader2, Crosshair, X, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import type { Tool, ListingType } from "@/types";
 import { useCurrency } from "@/lib/currency";
+import { listRecentSearches, saveRecentSearch, type RecentSearch } from "@/lib/recentSearches";
 
 const DEFAULT_RADIUS = 50;
 const MAX_PRICE = 500;
@@ -105,6 +106,8 @@ export default function Browse() {
   const [userLocation, setUserLocation] = useState<UserCoords | null>(null);
   const [geoLoading, setGeoLoading] = useState<boolean>(false);
   const [searchCenter, setSearchCenter] = useState<SearchCenter | null>(null);
+  const [recentOpen, setRecentOpen] = useState<boolean>(false);
+  const [recents, setRecents] = useState<RecentSearch[]>(() => listRecentSearches());
 
   // On mount: if URL has no filter params, hydrate from localStorage
   useEffect(() => {
@@ -133,6 +136,7 @@ export default function Browse() {
   const stateFilter = params.get("state") || "";
   const postal = params.get("postal_code") || "";
   const listingType = (params.get("listing_type") || "all") as ListingTypeFilter;
+  const verifiedOnly = params.get("verified_only") === "true";
 
   const [maxPriceUI, setMaxPriceUI] = useState<number>(
     parseInt(params.get("max_price") || String(MAX_PRICE), 10)
@@ -202,6 +206,7 @@ export default function Browse() {
     if (stateFilter) queryParams.state = stateFilter;
     if (postal) queryParams.postal_code = postal;
     if (listingType && listingType !== "all") queryParams.listing_type = listingType;
+    if (verifiedOnly) queryParams.verified_only = "true";
     if (maxPrice && maxPrice < MAX_PRICE) {
       queryParams.max_price = maxPrice;
       queryParams.viewer_currency = viewerCurrency;
@@ -216,7 +221,25 @@ export default function Browse() {
     api.get<Tool[]>("/tools", { params: queryParams })
       .then((r) => setTools(r.data))
       .finally(() => setLoading(false));
-  }, [q, category, city, stateFilter, postal, listingType, maxPrice, radiusKm, userLocation, searchCenter, viewerCurrency]);
+  }, [q, category, city, stateFilter, postal, listingType, verifiedOnly, maxPrice, radiusKm, userLocation, searchCenter, viewerCurrency]);
+
+  // Persist this search to the "Recently searched" row, but only after the user
+  // has been still for a moment. Avoids stuffing every keystroke.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setRecents(saveRecentSearch(params, t));
+    }, 1200);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, category, city, stateFilter, postal, listingType, verifiedOnly, maxPrice]);
+
+  const applyRecent = (r: RecentSearch) => {
+    const next = new URLSearchParams(r.params);
+    // Preserve radius_km when re-applying since it's a UX preference not a search.
+    if (params.has("radius_km")) next.set("radius_km", params.get("radius_km") as string);
+    setParams(next);
+    setRecentOpen(false);
+  };
 
   const updateParam = (k: string, v: string) => {
     const p = new URLSearchParams(params);
@@ -253,6 +276,8 @@ export default function Browse() {
       value: maxPrice < MAX_PRICE ? `≤ ${maxPrice}` : "" },
     { key: "radius_km", label: t("browse.filters_radius", "Distance"),
       value: params.has("radius_km") && radiusKm !== DEFAULT_RADIUS ? `${radiusKm} km` : "" },
+    { key: "verified_only", label: t("browse.filters_verified", "Verified"),
+      value: verifiedOnly ? t("common.yes", "Yes") : "" },
   ];
   const activeFilterCount = popoverFilters.filter((f) => !!f.value).length;
   const activeFilterChips = popoverFilters
@@ -344,6 +369,23 @@ export default function Browse() {
               className="w-[360px] rounded-2xl border-brand-border p-5 space-y-5"
               data-testid="browse-filters-popover"
             >
+              {/* Verified only */}
+              <label className="flex items-center justify-between cursor-pointer group" data-testid="browse-verified-toggle-row">
+                <span className="text-[11px] uppercase tracking-wider font-bold text-brand-muted group-hover:text-brand-text transition-colors">
+                  {t("browse.filters_verified_owners_only", "Verified owners only")}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={verifiedOnly}
+                  onClick={() => updateParam("verified_only", verifiedOnly ? "" : "true")}
+                  data-testid="browse-verified-toggle"
+                  className={`relative w-10 h-6 rounded-full transition-colors ${verifiedOnly ? "bg-green-600" : "bg-brand-border"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${verifiedOnly ? "translate-x-4" : ""}`} />
+                </button>
+              </label>
+
               {/* Location */}
               <div>
                 <div className="text-[11px] uppercase tracking-wider font-bold text-brand-muted mb-2">
@@ -439,7 +481,7 @@ export default function Browse() {
                 <button
                   onClick={() => {
                     const next = new URLSearchParams(params);
-                    ["city", "state", "postal_code", "max_price", "radius_km"].forEach((k) => next.delete(k));
+                    ["city", "state", "postal_code", "max_price", "radius_km", "verified_only"].forEach((k) => next.delete(k));
                     setParams(next);
                   }}
                   data-testid="browse-clear-popover-filters"
@@ -467,6 +509,37 @@ export default function Browse() {
             </button>
           </div>
         </div>
+
+        {/* Recently searched (collapsible) */}
+        {recents.length > 0 && (
+          <div className="max-w-[1600px] mx-auto px-6 pb-3" data-testid="browse-recent-wrap">
+            <button
+              onClick={() => setRecentOpen((v) => !v)}
+              data-testid="browse-recent-toggle"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-muted hover:text-brand-text transition-colors"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              {t("browse.recent_searches", "Recently searched")}
+              <span className="text-brand-muted/60">({recents.length})</span>
+              {recentOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+            {recentOpen && (
+              <div className="mt-2 flex flex-wrap gap-2" data-testid="browse-recent-chips">
+                {recents.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => applyRecent(r)}
+                    data-testid={`browse-recent-chip-${r.id}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-brand-border text-xs font-medium text-brand-text hover:border-brand-primary hover:bg-brand-primary/5 transition-colors"
+                  >
+                    <Search className="w-3 h-3 text-brand-muted" />
+                    <span className="max-w-[280px] truncate">{r.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Active filter pills */}
         {activeFilterChips.length > 0 && (

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Calendar, Heart, Package, Trash2, ShieldCheck, ShieldAlert, Bell, BellOff, Users, X } from "lucide-react";
 import { formatDateRange } from "@/lib/dateFormat";
+import VerifyIdentityDialog from "@/components/VerifyIdentityDialog";
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -23,6 +24,8 @@ export default function Dashboard() {
   const [ownerBookings, setOwnerBookings] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [follows, setFollows] = useState([]);
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyStatus, setVerifyStatus] = useState<string>("not_started");
 
   useEffect(() => {
     if (!loading && !user) nav("/login");
@@ -35,18 +38,12 @@ export default function Dashboard() {
     api.get("/bookings", { params: { role: "owner" } }).then(r => setOwnerBookings(r.data));
     api.get("/favorites").then(r => setFavorites(r.data));
     api.get("/follows").then(r => setFollows(r.data));
+    api.get("/identity/verify/status").then(r => setVerifyStatus(r.data.status)).catch(() => {});
   }, [user]);
 
   if (!user) return null;
 
-  const startVerification = async () => {
-    try {
-      const r = await api.post("/identity/verify/start", { return_url: window.location.origin + "/dashboard" });
-      window.location.href = r.data.url;
-    } catch (e) {
-      toast.error(e.response?.data?.detail || "Couldn't start verification");
-    }
-  };
+  const startVerification = () => setVerifyOpen(true);
 
   const deleteTool = async (id) => {
     if (!window.confirm("Delete this listing?")) return;
@@ -132,14 +129,31 @@ export default function Dashboard() {
             </div>
             <div className="flex-1">
               <div className="font-heading font-bold text-brand-text">{t("dashboard.verify_title")}</div>
-              <p className="text-sm text-brand-muted">{t("dashboard.verify_subtitle")}</p>
+              <p className="text-sm text-brand-muted">
+                {verifyStatus === "pending"
+                  ? t("verify.banner_pending", "Your submission is under review — we'll email you within 1–2 business days.")
+                  : verifyStatus === "rejected"
+                    ? t("verify.banner_rejected", "Your previous submission needs another look. Resubmit clearer photos.")
+                    : t("dashboard.verify_subtitle")}
+              </p>
             </div>
             <Button onClick={startVerification} data-testid="start-verification-btn"
               className="bg-brand-secondary hover:bg-brand-secondary-hover text-white rounded-xl font-semibold">
-              <ShieldCheck className="w-4 h-4 mr-1.5" /> {t("dashboard.verify_btn")}
+              <ShieldCheck className="w-4 h-4 mr-1.5" />
+              {verifyStatus === "pending"
+                ? t("verify.banner_pending_btn", "View status")
+                : verifyStatus === "rejected"
+                  ? t("verify.banner_rejected_btn", "Resubmit")
+                  : t("dashboard.verify_btn")}
             </Button>
           </div>
         )}
+
+        <VerifyIdentityDialog
+          open={verifyOpen}
+          onOpenChange={setVerifyOpen}
+          onApproved={() => api.get("/identity/verify/status").then(r => setVerifyStatus(r.data.status)).catch(() => {})}
+        />
 
         <Tabs defaultValue="listings" className="w-full">
           <TabsList className="bg-white border border-brand-border rounded-xl p-1 mb-6">

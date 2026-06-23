@@ -113,6 +113,9 @@
     "filters_location": "Lieu",
     "filters_max_price": "Prix max.",
     "filters_radius": "Distance",
+    "filters_verified": "Vérifié",
+    "filters_verified_owners_only": "Propriétaires vérifiés uniquement",
+    "recent_searches": "Recherches récentes",
     "any": "Tous",
     "no_tools_in_area": "Aucun outil dans cette zone",
     "no_tools_in_area_hint": "Essayez de déplacer la carte ou d'élargir votre rayon."

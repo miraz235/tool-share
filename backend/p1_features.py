@@ -38,8 +38,24 @@ class CheckoutIn(BaseModel):
     origin_url: str
 
 
-class IdentityStartIn(BaseModel):
-    return_url: str
+class IdentitySubmitIn(BaseModel):
+    """Self-hosted identity verification submission.
+
+    Renters upload an ID document and a selfie via /api/upload, then post
+    the resulting storage paths here together with their declared name and
+    ID details. Admin reviews via /api/admin/identity/queue.
+    """
+    id_type: Literal["driver_license", "passport", "national_id"]
+    id_number: str = Field(min_length=3, max_length=64)
+    full_name: str = Field(min_length=2, max_length=120)
+    id_document_path: str
+    selfie_path: str
+    notes: Optional[str] = None
+
+
+class IdentityReviewIn(BaseModel):
+    decision: Literal["approved", "rejected"]
+    admin_note: Optional[str] = None
 
 
 class AdminUserUpdate(BaseModel):
@@ -192,43 +208,124 @@ def build_p1_router(db, current_user_dep, get_user_by_id) -> APIRouter:
         return {"count": n}
 
     # ---------------------------- Identity verification ------------------
-    @r.post("/identity/verify/start")
-    async def identity_start(payload: IdentityStartIn, user: dict = Depends(current_user_dep)):
-        try:
-            session = stripe.identity.VerificationSession.create(
-                type="document",
-                metadata={"user_id": user["id"]},
-                options={"document": {"require_matching_selfie": True}},
-                return_url=payload.return_url,
-            )
-            await db.identity_sessions.insert_one({
-                "id": session.id,
-                "user_id": user["id"],
-                "status": session.status,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
-            return {"url": session.url, "session_id": session.id}
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe Identity error: {e}")
-            raise HTTPException(500, f"Stripe error: {str(e)}")
+    # Self-hosted: renters submit ID document + selfie + identity fields. An
+    # admin reviews submissions from /admin/identity/queue and decides.
+    # No 3rd-party API dependency.
+
+    @r.post("/identity/verify/submit")
+    async def identity_submit(payload: IdentitySubmitIn, user: dict = Depends(current_user_dep)):
+        if user.get("is_verified"):
+            raise HTTPException(400, "Account already verified")
+        # If there's an existing pending submission, replace it (idempotent re-submit).
+        existing = await db.identity_submissions.find_one(
+            {"user_id": user["id"], "status": "pending"}
+        )
+        submission_id = existing["id"] if existing else f"idv_{uuid.uuid4().hex[:12]}"
+        doc = {
+            "id": submission_id,
+            "user_id": user["id"],
+            "user_email": user["email"],
+            "id_type": payload.id_type,
+            "id_number_last4": payload.id_number[-4:] if len(payload.id_number) >= 4 else payload.id_number,
+            "id_number_hash": uuid.uuid5(uuid.NAMESPACE_DNS, payload.id_number).hex,
+            "full_name": payload.full_name,
+            "id_document_path": payload.id_document_path,
+            "selfie_path": payload.selfie_path,
+            "notes": payload.notes,
+            "status": "pending",
+            "admin_note": None,
+            "reviewed_by": None,
+            "reviewed_at": None,
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if existing:
+            await db.identity_submissions.update_one({"id": submission_id}, {"$set": doc})
+        else:
+            await db.identity_submissions.insert_one(doc)
+        # Reflect status on the user record for cheap reads everywhere else.
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"verification_status": "pending"}}
+        )
+        return {"id": submission_id, "status": "pending"}
 
     @r.get("/identity/verify/status")
     async def identity_status(user: dict = Depends(current_user_dep)):
-        rec = await db.identity_sessions.find_one(
+        rec = await db.identity_submissions.find_one(
             {"user_id": user["id"]},
-            {"_id": 0},
-            sort=[("created_at", -1)]
+            {"_id": 0, "id_number_hash": 0},
+            sort=[("submitted_at", -1)]
         )
         if not rec:
-            return {"status": "not_started", "is_verified": user.get("is_verified", False)}
-        # Refresh from stripe
-        try:
-            session = stripe.identity.VerificationSession.retrieve(rec["id"])
-            if session.status == "verified" and not user.get("is_verified"):
-                await db.users.update_one({"id": user["id"]}, {"$set": {"is_verified": True}})
-            return {"status": session.status, "is_verified": session.status == "verified"}
-        except stripe.error.StripeError:
-            return {"status": rec.get("status", "unknown"), "is_verified": user.get("is_verified", False)}
+            return {
+                "status": "not_started",
+                "is_verified": user.get("is_verified", False),
+            }
+        return {
+            "status": rec["status"],
+            "is_verified": user.get("is_verified", False) or rec["status"] == "approved",
+            "submission": rec,
+        }
+
+    @r.get("/admin/identity/queue")
+    async def admin_identity_queue(
+        status: Literal["pending", "approved", "rejected", "all"] = "pending",
+        user: dict = Depends(current_user_dep)
+    ):
+        if not user.get("is_admin"):
+            raise HTTPException(403, "Admin only")
+        filt = {} if status == "all" else {"status": status}
+        cur = db.identity_submissions.find(
+            filt,
+            {"_id": 0, "id_number_hash": 0}
+        ).sort("submitted_at", -1).limit(200)
+        return await cur.to_list(length=200)
+
+    @r.post("/admin/identity/{submission_id}/review")
+    async def admin_identity_review(
+        submission_id: str,
+        payload: IdentityReviewIn,
+        user: dict = Depends(current_user_dep)
+    ):
+        if not user.get("is_admin"):
+            raise HTTPException(403, "Admin only")
+        sub = await db.identity_submissions.find_one({"id": submission_id})
+        if not sub:
+            raise HTTPException(404, "Submission not found")
+        if sub["status"] != "pending":
+            raise HTTPException(400, f"Already reviewed ({sub['status']})")
+        now = datetime.now(timezone.utc).isoformat()
+        await db.identity_submissions.update_one(
+            {"id": submission_id},
+            {"$set": {
+                "status": payload.decision,
+                "admin_note": payload.admin_note,
+                "reviewed_by": user["id"],
+                "reviewed_at": now,
+            }}
+        )
+        user_update = {"verification_status": payload.decision}
+        if payload.decision == "approved":
+            user_update["is_verified"] = True
+        await db.users.update_one({"id": sub["user_id"]}, {"$set": user_update})
+        # Notify renter (MOCKED email)
+        target = await get_user_by_id(sub["user_id"])
+        if target:
+            if payload.decision == "approved":
+                await send_email_mocked(
+                    target["email"],
+                    "Your ToolShare ID was approved",
+                    "You're now a verified ToolShare member. The Verified badge will appear on your listings and bookings.",
+                    db=db,
+                )
+            else:
+                await send_email_mocked(
+                    target["email"],
+                    "Your ToolShare ID needs another look",
+                    f"Your verification was not approved. Reason: {payload.admin_note or 'No specific reason provided.'}",
+                    db=db,
+                )
+        return {"ok": True, "status": payload.decision}
 
     # ---------------------------- Payments (Stripe Checkout) -------------
     @r.post("/bookings/checkout")
