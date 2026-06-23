@@ -280,9 +280,29 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ **Secondary filters moved into a `Filters` popover** (`data-testid="browse-filters-popover"`): City, State/Province, ZIP/Postal, Max price slider, Distance slider + "Use my location" button.
 - ✅ **Active-filter badge** (`data-testid="browse-active-filter-count"`) on the Filters button shows the count of applied secondary filters.
 - ✅ **Active-filter chips** below the toolbar (`data-testid="browse-active-filters"`, `browse-chip-{key}`) — one-click removal of individual filters or all-at-once via "Clear filters" link.
-- ✅ Popover-internal "Clear filters" link only resets the popover's filters (city/state/postal/max_price/radius), preserving Search/Category/listing-type.
+- ✅ Popover-internal "Clear filters" link only resets the popover's filters (city/state/postal/max_price/radius/verified_only), preserving Search/Category/listing-type.
 - ✅ Translations added for new keys (`browse.filters`, `browse.filters_location`, `browse.filters_max_price`, `browse.filters_radius`, `browse.any`) in EN/FR/ES.
-- ✅ Verified live: 19 → 6 tools when filtering city=Toronto; badge shows "1"; chip "City: Toronto ×" appears under the bar.
+
+## 12p. True Identity Verification — self-hosted (2026-02-12)
+- ✅ **Replaced Stripe Identity stub** (which failed because pod's `sk_test_emergent` was a placeholder) with a fully self-hosted ID upload + admin manual review flow.
+- ✅ **Backend** (`/app/backend/p1_features.py`):
+  - `POST /api/identity/verify/submit` — accepts {id_type, id_number, full_name, id_document_path, selfie_path}; stores submission in `db.identity_submissions` with only `id_number_last4` + a salted hash, never the full number. Idempotent re-submit while pending.
+  - `GET /api/identity/verify/status` — returns submission status (not_started/pending/approved/rejected) + is_verified.
+  - `GET /api/admin/identity/queue?status=pending|approved|rejected|all` — admin-only queue.
+  - `POST /api/admin/identity/{submission_id}/review` — admin approves/rejects with note; approval flips `user.is_verified=true`; rejection emails the renter via `send_email_mocked`.
+- ✅ **Frontend**:
+  - `VerifyIdentityDialog` component — full submission flow (ID type select, name + number inputs, two image-upload tiles for ID + selfie). Status-aware views: not_started / pending / rejected (with resubmit) / approved.
+  - Dashboard: `startVerification` opens the dialog (no longer redirects to Stripe). Banner text/button labels adapt to status (pending = "View status", rejected = "Resubmit").
+  - Admin dashboard: new **Identity** tab (`data-testid="admin-tab-identity"`) with pending-count pill, status filter buttons (pending/approved/rejected/all), submission rows showing ID + selfie thumbnails (click to enlarge), approve/reject inline with required reject note.
+  - i18n: replaced "Verify with Stripe" → "Verify identity" (EN/FR/ES).
+- ✅ **Side improvement**: `GET /api/tools?verified_only=true` filter + `owner_verified` flag stamped on every tool response. ToolCard renders a green `Verified` badge (`data-testid="tool-verified-{tool.id}"`) when the owner is verified. Browse popover adds a `Verified owners only` switch (`data-testid="browse-verified-toggle"`) — toggling it adds `verified_only=true` to the URL and the chip strip.
+- ✅ Tests (iter13): 13/13 backend pytest pass; frontend E2E covers submit flow, pending banner, admin queue + approve/reject, verified badge rendering on 17/19 cards, verified-only toggle.
+
+## 12q. Recently-searched row (2026-02-12)
+- ✅ **`/app/frontend/src/lib/recentSearches.ts`** — localStorage-backed helper: tracks the 8 user-meaningful URL params (q, category, listing_type, city, state, postal_code, max_price, verified_only), de-dupes by stable hash, caps at 3 entries.
+- ✅ **Collapsible row** under the Browse search bar (`data-testid="browse-recent-toggle"`) toggles a flexible chip strip (`data-testid="browse-recent-chips"`). Each chip (`browse-recent-chip-{id}`) shows a human label like `power-tools` or `drill · Toronto`. One click re-applies that filter combination via `URLSearchParams`.
+- ✅ Debounced 1.2s after each search so we don't snapshot every keystroke. Survives page refresh (localStorage). Empty/blank searches are skipped.
+- ✅ Translations: `browse.recent_searches` in EN/FR/ES.
 
 ## 13. Prioritized Backlog
 

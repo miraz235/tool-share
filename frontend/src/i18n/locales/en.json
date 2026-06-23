@@ -227,7 +227,7 @@
     "discover_tools": "Discover tools",
     "verify_title": "Verify your identity",
     "verify_subtitle": "Verified users get more booking requests and access to higher-value tools.",
-    "verify_btn": "Verify with Stripe",
+    "verify_btn": "Verify identity",
     "saved_tools": "Saved tools",
     "followed_owners": "Followed owners",
     "empty_follows": "Follow an owner from their profile to get alerts when they list something new.",

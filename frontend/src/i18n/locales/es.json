@@ -227,7 +227,7 @@
     "discover_tools": "Descubrir herramientas",
     "verify_title": "Verifica tu identidad",
     "verify_subtitle": "Los usuarios verificados reciben más solicitudes y acceden a herramientas de mayor valor.",
-    "verify_btn": "Verificar con Stripe",
+    "verify_btn": "Verificar identidad",
     "saved_tools": "Herramientas guardadas",
     "followed_owners": "Propietarios seguidos",
     "empty_follows": "Sigue a un propietario desde su perfil para recibir alertas cuando publique algo nuevo.",

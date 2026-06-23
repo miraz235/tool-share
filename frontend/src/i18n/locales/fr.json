@@ -227,7 +227,7 @@
     "discover_tools": "Découvrir des outils",
     "verify_title": "Vérifiez votre identité",
     "verify_subtitle": "Les utilisateurs vérifiés reçoivent plus de demandes et accèdent à des outils de plus grande valeur.",
-    "verify_btn": "Vérifier avec Stripe",
+    "verify_btn": "Vérifier mon identité",
     "saved_tools": "Outils enregistrés",
     "followed_owners": "Loueurs suivis",
     "empty_follows": "Suivez un loueur depuis son profil pour être averti de ses nouvelles annonces.",
