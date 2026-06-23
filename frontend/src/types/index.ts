@@ -1,4 +1,4 @@
-// Central domain types for ToolShare frontend.
+// Central domain types for ShareMyKit frontend.
 // These mirror the FastAPI / MongoDB schemas in /app/backend/server.py.
 
 export type ListingType = "rent" | "sell" | "both";

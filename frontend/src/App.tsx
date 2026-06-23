@@ -11,6 +11,7 @@ import Browse from "@/pages/Browse";
 import ToolDetail from "@/pages/ToolDetail";
 import ListTool from "@/pages/ListTool";
 import Dashboard from "@/pages/Dashboard";
+import Inventory from "@/pages/Inventory";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Profile from "@/pages/Profile";
@@ -89,6 +90,7 @@ function AppRouter() {
       <Route path="/tools/:id" element={<ToolDetail />} />
       <Route path="/list" element={<ListTool />} />
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/inventory" element={<Inventory />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/profile/:id" element={<Profile />} />

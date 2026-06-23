@@ -380,7 +380,7 @@ export default function Browse() {
                   aria-checked={verifiedOnly}
                   onClick={() => updateParam("verified_only", verifiedOnly ? "" : "true")}
                   data-testid="browse-verified-toggle"
-                  className={`relative w-10 h-6 rounded-full transition-colors ${verifiedOnly ? "bg-green-600" : "bg-brand-border"}`}
+                  className={`relative w-10 h-6 rounded-full transition-colors ${verifiedOnly ? "bg-brand-primary" : "bg-brand-border"}`}
                 >
                   <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${verifiedOnly ? "translate-x-4" : ""}`} />
                 </button>

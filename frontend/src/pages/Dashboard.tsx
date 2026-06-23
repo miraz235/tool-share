@@ -89,7 +89,7 @@ export default function Dashboard() {
 
   const statusColor = {
     pending: "bg-yellow-100 text-yellow-800",
-    approved: "bg-green-100 text-green-800",
+    approved: "bg-brand-primary/10 text-brand-primary",
     declined: "bg-red-100 text-red-700",
     cancelled: "bg-gray-100 text-gray-700",
     completed: "bg-blue-100 text-blue-700",
@@ -175,18 +175,31 @@ export default function Dashboard() {
             {myTools.length === 0 ? (
               <EmptyState icon={Package} title={t("dashboard.empty_listings")} cta={t("dashboard.list_first")} to="/list" />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {myTools.map(t => (
-                  <div key={t.id} className="relative">
-                    <ToolCard tool={t} />
-                    <Button variant="outline" size="sm" onClick={() => deleteTool(t.id)}
-                      data-testid={`delete-tool-${t.id}`}
-                      className="absolute top-3 left-3 z-10 rounded-lg bg-white border-brand-border">
-                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                    </Button>
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm text-brand-muted">
+                    {t("dashboard.listings_count", { count: myTools.length, defaultValue: "{{count}} listing(s)" })}
                   </div>
-                ))}
-              </div>
+                  <Link to="/inventory" data-testid="dashboard-inventory-link">
+                    <Button variant="outline" size="sm" className="rounded-xl border-brand-border">
+                      <Calendar className="w-4 h-4 mr-1.5" />
+                      {t("dashboard.inventory_dashboard", "Inventory dashboard")}
+                    </Button>
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {myTools.map(tool => (
+                    <div key={tool.id} className="relative">
+                      <ToolCard tool={tool} />
+                      <Button variant="outline" size="sm" onClick={() => deleteTool(tool.id)}
+                        data-testid={`delete-tool-${tool.id}`}
+                        className="absolute top-3 left-3 z-10 rounded-lg bg-white border-brand-border">
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </TabsContent>
 
@@ -318,7 +331,7 @@ function BookingRow({ booking, role, onUpdateStatus }: { booking: any; role: str
   const { format } = useCurrency();
   const statusColor = {
     pending: "bg-yellow-100 text-yellow-800",
-    approved: "bg-green-100 text-green-800",
+    approved: "bg-brand-primary/10 text-brand-primary",
     declined: "bg-red-100 text-red-700",
     cancelled: "bg-gray-100 text-gray-700",
     completed: "bg-blue-100 text-blue-700",

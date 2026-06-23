@@ -81,7 +81,7 @@ export default function ToolCard({ tool, onToggleFavorite, isFavorite }: ToolCar
           <span className="capitalize">{tool.condition}</span>
           {tool.owner_verified && (
             <span
-              className="ml-auto inline-flex items-center gap-0.5 text-green-700 font-semibold"
+              className="ml-auto inline-flex items-center gap-0.5 text-brand-primary font-semibold"
               data-testid={`tool-verified-${tool.id}`}
               title={t("common.verified_owner", "Verified owner")}
             >

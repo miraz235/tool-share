@@ -84,7 +84,7 @@ export default function AIAssistant() {
   };
 
   const difficultyColor = {
-    Easy: "bg-green-100 text-green-800",
+    Easy: "bg-brand-primary/10 text-brand-primary",
     Moderate: "bg-yellow-100 text-yellow-800",
     Advanced: "bg-red-100 text-red-800",
   };

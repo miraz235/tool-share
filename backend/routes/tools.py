@@ -254,3 +254,120 @@ async def delete_tool(tool_id: str, user: dict = Depends(current_user)):
 async def my_tools(user: dict = Depends(current_user)):
     cur = db.tools.find({"owner_id": user["id"]}, {"_id": 0}).sort("created_at", -1)
     return await cur.to_list(length=200)
+
+
+@router.get("/my/inventory")
+async def my_inventory(days: int = 30, user: dict = Depends(current_user)):
+    """Per-day stock heatmap for every tool the owner has.
+
+    Returns a list of {tool_id, title, quantity_total, days: [{date, booked, remaining}]}.
+    Used by the owner inventory dashboard to spot bottlenecks.
+    """
+    days = max(7, min(90, days))
+    today = datetime.now(timezone.utc).date()
+    horizon = today + timedelta(days=days - 1)
+    tools = await db.tools.find(
+        {"owner_id": user["id"]},
+        {"_id": 0, "id": 1, "title": 1, "images": 1, "quantity_total": 1, "is_available": 1, "unavailable_dates": 1, "daily_price": 1, "price_currency": 1}
+    ).sort("created_at", -1).to_list(length=200)
+
+    if not tools:
+        return {"days": [d.isoformat() for d in (today + timedelta(days=i) for i in range(days))], "tools": []}
+
+    tool_ids = [t["id"] for t in tools]
+    bookings = await db.bookings.find(
+        {
+            "tool_id": {"$in": tool_ids},
+            "status": {"$in": ["pending", "approved"]},
+            "end_date": {"$gte": today.isoformat()},
+            "start_date": {"$lte": horizon.isoformat()},
+        },
+        {"_id": 0, "tool_id": 1, "start_date": 1, "end_date": 1, "quantity": 1, "status": 1}
+    ).to_list(length=2000)
+
+    # Build per-tool booked map
+    by_tool: dict[str, dict[str, int]] = {tid: {} for tid in tool_ids}
+    for b in bookings:
+        try:
+            s = datetime.fromisoformat(b["start_date"]).date()
+            e = datetime.fromisoformat(b["end_date"]).date()
+        except Exception:
+            continue
+        qty = int(b.get("quantity") or 1)
+        d = max(s, today)
+        end = min(e, horizon)
+        while d <= end:
+            iso = d.isoformat()
+            by_tool[b["tool_id"]][iso] = by_tool[b["tool_id"]].get(iso, 0) + qty
+            d = d + timedelta(days=1)
+
+    date_seq = [(today + timedelta(days=i)).isoformat() for i in range(days)]
+    result_tools = []
+    for t in tools:
+        qty_total = int(t.get("quantity_total") or 1)
+        owner_blocked = set(t.get("unavailable_dates", []) or [])
+        rows = []
+        for iso in date_seq:
+            booked = by_tool[t["id"]].get(iso, 0)
+            owner_block = iso in owner_blocked
+            remaining = 0 if owner_block else max(0, qty_total - booked)
+            rows.append({
+                "date": iso,
+                "booked": booked,
+                "remaining": remaining,
+                "owner_blocked": owner_block,
+            })
+        result_tools.append({
+            "id": t["id"],
+            "title": t["title"],
+            "image": (t.get("images") or [None])[0],
+            "quantity_total": qty_total,
+            "is_available": t.get("is_available", True),
+            "daily_price": t.get("daily_price"),
+            "price_currency": t.get("price_currency", "USD"),
+            "days": rows,
+        })
+
+    return {"days": date_seq, "tools": result_tools}
+
+
+@router.post("/tools/{tool_id}/block_dates")
+async def block_dates(
+    tool_id: str,
+    dates: list[str],
+    user: dict = Depends(current_user)
+):
+    """Owner toggles stock-out for a list of ISO dates (additive merge)."""
+    tool = await db.tools.find_one({"id": tool_id})
+    if not tool:
+        raise HTTPException(404, "Tool not found")
+    if tool["owner_id"] != user["id"]:
+        raise HTTPException(403, "Not the owner")
+    current = set(tool.get("unavailable_dates", []) or [])
+    incoming = set(dates)
+    # Symmetric toggle: dates already blocked get unblocked; new dates get added.
+    next_blocked = sorted((current - incoming) | (incoming - current))
+    await db.tools.update_one(
+        {"id": tool_id},
+        {"$set": {"unavailable_dates": next_blocked}}
+    )
+    return {"ok": True, "unavailable_dates": next_blocked}
+
+
+@router.put("/tools/{tool_id}/availability")
+async def toggle_availability(
+    tool_id: str,
+    user: dict = Depends(current_user),
+    is_available: bool = True,
+):
+    """Quick on/off switch — hides the tool from browse without deleting it."""
+    tool = await db.tools.find_one({"id": tool_id})
+    if not tool:
+        raise HTTPException(404, "Tool not found")
+    if tool["owner_id"] != user["id"]:
+        raise HTTPException(403, "Not the owner")
+    await db.tools.update_one(
+        {"id": tool_id},
+        {"$set": {"is_available": bool(is_available)}}
+    )
+    return {"ok": True, "is_available": bool(is_available)}

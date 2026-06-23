@@ -90,9 +90,9 @@
     "footer_how": "Cómo funciona",
     "footer_trust": "Confianza y seguridad",
     "footer_help": "Centro de ayuda",
-    "footer_about": "Alquila herramientas a tus vecinos. Construye, repara y crea — sin tener que poseerlo todo. ToolShare es un mercado comunitario para Norteamérica.",
+    "footer_about": "Alquila herramientas a tus vecinos. Construye, repara y crea — sin tener que poseerlo todo. ShareMyKit es un mercado comunitario para Norteamérica.",
     "footer_made": "Hecho en Norteamérica",
-    "footer_copy": "© 2026 ToolShare. Hecho para vecinos."
+    "footer_copy": "© 2026 ShareMyKit. Hecho para vecinos."
   },
   "browse": {
     "tools_available_one": "{{count}} herramienta disponible",
@@ -187,8 +187,8 @@
   },
   "auth": {
     "welcome_back": "Bienvenido de vuelta",
-    "signin_sub": "Inicia sesión para continuar en ToolShare",
-    "join": "Únete a ToolShare",
+    "signin_sub": "Inicia sesión para continuar en ShareMyKit",
+    "join": "Únete a ShareMyKit",
     "join_sub": "Pide y presta herramientas entre vecinos",
     "continue_google": "Continuar con Google",
     "or": "o",
@@ -199,13 +199,13 @@
     "signing_in": "Iniciando sesión…",
     "creating": "Creando…",
     "create_account": "Crear cuenta",
-    "new_here": "¿Nuevo en ToolShare?",
+    "new_here": "¿Nuevo en ShareMyKit?",
     "create_link": "Crear una cuenta",
     "have_account": "¿Ya tienes una cuenta?",
     "login_failed": "Error de inicio de sesión",
     "register_failed": "Error de registro",
     "welcome_toast": "¡Bienvenido de vuelta!",
-    "welcome_new": "¡Bienvenido a ToolShare!",
+    "welcome_new": "¡Bienvenido a ShareMyKit!",
     "password_short": "La contraseña debe tener al menos 6 caracteres"
   },
   "dashboard": {

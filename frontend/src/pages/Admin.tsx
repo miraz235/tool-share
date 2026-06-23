@@ -99,11 +99,11 @@ export default function Admin() {
   if (!user?.is_admin) return null;
 
   const statusColor = {
-    pending: "bg-yellow-100 text-yellow-800",
-    approved: "bg-green-100 text-green-800",
+    pending: "bg-amber-100 text-amber-800",
+    approved: "bg-brand-primary/10 text-brand-primary",
     declined: "bg-red-100 text-red-700",
-    cancelled: "bg-gray-100 text-gray-700",
-    completed: "bg-blue-100 text-blue-700",
+    cancelled: "bg-slate-100 text-slate-700",
+    completed: "bg-sky-100 text-sky-700",
   };
 
   return (
@@ -410,7 +410,7 @@ export default function Admin() {
                             </Badge>
                           )}
                           {s.status === "approved" && (
-                            <Badge className="bg-green-100 text-green-800 border-0 gap-1">
+                            <Badge className="bg-brand-primary/10 text-brand-primary border-0 gap-1">
                               <CheckCircle2 className="w-3 h-3" /> {t("verify.status_approved", "Approved")}
                             </Badge>
                           )}
@@ -436,7 +436,7 @@ export default function Admin() {
                           <Button
                             onClick={() => reviewIdentity(s.id, "approved")}
                             data-testid={`admin-identity-approve-${s.id}`}
-                            className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl"
+                            className="flex-1 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl"
                           >
                             <CheckCircle2 className="w-4 h-4 mr-1" /> {t("admin.identity.approve", "Approve")}
                           </Button>

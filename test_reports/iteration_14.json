@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 14 — Tested ShareMyKit brand rename, no-green theme, hover-bug fix, and new Owner Inventory dashboard (heatmap + XOR block + availability toggle). Backend: 8/8 pytest cases passed (100%). Frontend: 9/9 end-to-end flows verified — brand rename complete, verified badges and verified-toggle render navy (rgb(30,58,95)) instead of green, shadcn Select hover keeps text dark on soft slate background (readable), /inventory shows 105 cells for marcus's 5 tools, KPI strip with 4 cards + legend present, XOR cell toggle flips data-blocked attribute via POST /block_dates, dashboard-inventory-link navigates correctly, and unauthenticated /inventory redirects to /login.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Header",
+        "issue": "Review request asked to confirm [data-testid='header'] but the element does not have that attribute. The ShareMyKit logo and nav are rendered correctly, so it's purely a missing testid (cosmetic for testability).",
+        "selector": "[data-testid='header']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Global",
+        "issues": ["Pre-existing (iter_13) ipapi.co CORS errors still log on every navigation — non-blocking but spammy in console."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration14_inventory.py",
+    "/app/test_reports/pytest/iter14_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Add data-testid='header' to the Header component for testability per review-request convention.",
+    "(Optional) Suppress or proxy the ipapi.co geo-IP lookup to remove repeated CORS console errors."
+  ],
+  "critical_code_review_comments": [
+    "routes/tools.py my_inventory clamps days to [7,90] but the inventory view requested days=21 — fine, but the clamp logic uses max(7, min(90, days)) and silently coerces invalid values; consider raising a 422 instead of silently clamping to make API contract explicit.",
+    "POST /tools/{tool_id}/block_dates accepts a raw list[str] body — no validation that dates are valid ISO format or in the future. Malformed entries would be stored as-is. Recommend Pydantic body model with date validation.",
+    "block_dates uses XOR symmetric_difference — well documented in docstring as 'Symmetric toggle', good. However, the endpoint name 'block_dates' is misleading; consider renaming to 'toggle_blocked_dates' for clarity, or splitting into add/remove endpoints.",
+    "Inventory frontend cell click directly mutates server state on every click — no debounce; if user rapidly clicks the same cell, multiple in-flight XOR requests could leave state in an unexpected position. Recommend disabling cell during the in-flight request (the spinner already implies this — verify it's enforced in the click handler).",
+    "Frontend Inventory.tsx — confirm that the heatmap uses CSS classes only (no inline green styling left) and that legend swatches match the new brand palette (no green Tailwind classes such as bg-green-*)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration14_inventory.py (new)"
+  ],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "~95% (9/9 functional flows pass; only missing the data-testid='header' attribute)"},
+  "test_credentials": "marcus@toolshare.demo / demo1234 (5 tools), sara@toolshare.demo / demo1234 (no tools), admin@toolshare.demo / Admin1234!",
+  "seed_data_creation": "None. Tests use existing seeded users; XOR toggle test was self-cleaning (toggle twice returns to initial state); availability test toggles then restores. Marcus's tools may temporarily have 2026-12-15/16 added then removed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Inventory + brand-rename + no-green theme + hover-bug fix all confirmed working end-to-end. Backend regression file: /app/backend/tests/test_iteration14_inventory.py (set REACT_APP_BACKEND_URL env var before running). Frontend testids confirmed: tool-verified-{id}, browse-verified-toggle, inventory-heatmap, inventory-cell-{tool_id}-{date} (uses data-blocked='0'/'1'), inventory-kpi-utilisation|units|hot|soldout, inventory-legend, inventory-toggle-availability-{tool_id}, dashboard-inventory-link. Note: cell uses data-blocked='1'/'0' (not 'true'/'false'). The only gap vs review-request is that [data-testid='header'] was not found in DOM — header functions correctly but missing the attribute."
+}

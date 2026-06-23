@@ -11,8 +11,8 @@ html, body, #root {
 
 body {
     margin: 0;
-    background-color: #FDFCF7;
-    color: #1A201D;
+    background-color: #F8FAFC;
+    color: #0F172A;
     font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -20,25 +20,27 @@ body {
 
 @layer base {
     :root {
-        --background: 48 42% 98%;
-        --foreground: 130 13% 11%;
+        --background: 210 40% 98%;
+        --foreground: 222 47% 11%;
         --card: 0 0% 100%;
-        --card-foreground: 130 13% 11%;
+        --card-foreground: 222 47% 11%;
         --popover: 0 0% 100%;
-        --popover-foreground: 130 13% 11%;
-        --primary: 162 35% 26%;
-        --primary-foreground: 48 42% 98%;
-        --secondary: 48 16% 96%;
-        --secondary-foreground: 130 13% 11%;
-        --muted: 48 16% 96%;
-        --muted-foreground: 140 5% 35%;
-        --accent: 18 65% 51%;
-        --accent-foreground: 0 0% 100%;
+        --popover-foreground: 222 47% 11%;
+        --primary: 213 53% 25%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 210 40% 96%;
+        --secondary-foreground: 222 47% 11%;
+        --muted: 210 40% 96%;
+        --muted-foreground: 215 16% 35%;
+        /* Accent drives shadcn hover states (Select / Dropdown / Command / Menubar items). */
+        /* Now a soft slate so foreground text stays high-contrast on hover. */
+        --accent: 210 40% 92%;
+        --accent-foreground: 222 47% 11%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 98%;
-        --border: 45 18% 87%;
-        --input: 45 18% 87%;
-        --ring: 162 35% 26%;
+        --border: 214 32% 91%;
+        --input: 214 32% 91%;
+        --ring: 213 53% 25%;
         --radius: 0.75rem;
     }
 }
@@ -46,20 +48,20 @@ body {
 @layer base {
     * { @apply border-border; }
     body { @apply bg-brand-bg text-brand-text; }
-    h1, h2, h3, h4, h5, h6 { font-family: 'Manrope', sans-serif; color: #1A201D; }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Manrope', sans-serif; color: #0F172A; }
 }
 
 @layer utilities {
     .glass-header {
-        background-color: rgba(253, 252, 247, 0.8);
+        background-color: rgba(248, 250, 252, 0.85);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
     }
     .tool-card-shadow {
-        box-shadow: 0 1px 2px rgba(26, 32, 29, 0.04);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
     .tool-card-shadow:hover {
-        box-shadow: 0 10px 30px rgba(26, 32, 29, 0.08);
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
     }
     .text-balance { text-wrap: balance; }
 }
@@ -71,7 +73,7 @@ body {
     z-index: 0;
 }
 .tool-marker-pin {
-    background: #D36135;
+    background: #C2410C;
     color: #fff;
     border-radius: 999px;
     padding: 4px 10px;
@@ -82,7 +84,7 @@ body {
     white-space: nowrap;
 }
 .tool-marker-pin.is-active {
-    background: #2D5A4C;
+    background: #1E3A5F;
 }
 
 /* Hide default debug wrappers */

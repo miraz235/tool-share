@@ -11,7 +11,7 @@ export default function Footer() {
             <div className="w-9 h-9 rounded-xl bg-brand-primary flex items-center justify-center">
               <Wrench className="w-5 h-5 text-white" strokeWidth={2.5} />
             </div>
-            <span className="font-heading font-extrabold text-xl">ToolShare</span>
+            <span className="font-heading font-extrabold text-xl">ShareMyKit</span>
           </div>
           <p className="text-brand-muted text-sm max-w-md">{t("landing.footer_about")}</p>
         </div>

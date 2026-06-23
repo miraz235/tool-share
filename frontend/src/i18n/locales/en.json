@@ -90,9 +90,9 @@
     "footer_how": "How it works",
     "footer_trust": "Trust & Safety",
     "footer_help": "Help center",
-    "footer_about": "Rent tools from your neighbours. Build, fix, and create — without owning everything. ToolShare is a community marketplace for North America.",
+    "footer_about": "Rent tools from your neighbours. Build, fix, and create — without owning everything. ShareMyKit is a community marketplace for North America.",
     "footer_made": "Made in North America",
-    "footer_copy": "© 2026 ToolShare. Built for neighbours."
+    "footer_copy": "© 2026 ShareMyKit. Built for neighbours."
   },
   "browse": {
     "tools_available_one": "{{count}} tool available",
@@ -187,8 +187,8 @@
   },
   "auth": {
     "welcome_back": "Welcome back",
-    "signin_sub": "Sign in to continue to ToolShare",
-    "join": "Join ToolShare",
+    "signin_sub": "Sign in to continue to ShareMyKit",
+    "join": "Join ShareMyKit",
     "join_sub": "Borrow & lend tools with neighbours",
     "continue_google": "Continue with Google",
     "or": "or",
@@ -199,13 +199,13 @@
     "signing_in": "Signing in…",
     "creating": "Creating…",
     "create_account": "Create account",
-    "new_here": "New to ToolShare?",
+    "new_here": "New to ShareMyKit?",
     "create_link": "Create an account",
     "have_account": "Already have an account?",
     "login_failed": "Login failed",
     "register_failed": "Registration failed",
     "welcome_toast": "Welcome back!",
-    "welcome_new": "Welcome to ToolShare!",
+    "welcome_new": "Welcome to ShareMyKit!",
     "password_short": "Password must be at least 6 characters"
   },
   "dashboard": {

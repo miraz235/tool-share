@@ -125,7 +125,7 @@ export default function VerifyIdentityDialog({ open, onOpenChange, onApproved }:
     }
     if (status === "approved") {
       return (
-        <Badge data-testid="verify-status-approved" className="bg-green-100 text-green-800 border-0 gap-1.5 px-3 py-1">
+        <Badge data-testid="verify-status-approved" className="bg-brand-primary/10 text-brand-primary border-0 gap-1.5 px-3 py-1">
           <CheckCircle2 className="w-3.5 h-3.5" /> {t("verify.status_approved", "Verified")}
         </Badge>
       );
@@ -164,7 +164,7 @@ export default function VerifyIdentityDialog({ open, onOpenChange, onApproved }:
           <div className="py-2 space-y-3" data-testid="verify-pending-state">
             <StatusBadge />
             <p className="text-sm text-brand-muted">
-              {t("verify.pending_body", "Your submission is in our review queue. We'll email you within 1–2 business days. You can keep using ToolShare while you wait.")}
+              {t("verify.pending_body", "Your submission is in our review queue. We'll email you within 1–2 business days. You can keep using ShareMyKit while you wait.")}
             </p>
             {submission && (
               <div className="text-xs bg-brand-subtle rounded-xl p-3 space-y-1 border border-brand-border">
@@ -279,7 +279,7 @@ export default function VerifyIdentityDialog({ open, onOpenChange, onApproved }:
               {t("verify.submit", "Submit for review")}
             </Button>
             <p className="text-xs text-brand-muted text-center">
-              {t("verify.privacy_hint", "Your documents are stored privately and only seen by the ToolShare review team.")}
+              {t("verify.privacy_hint", "Your documents are stored privately and only seen by the ShareMyKit review team.")}
             </p>
           </div>
         )}

@@ -102,11 +102,11 @@ export default function BookingDetail() {
   }, [search]);
 
   const statusColor = {
-    pending: "bg-yellow-100 text-yellow-800",
-    approved: "bg-green-100 text-green-800",
+    pending: "bg-amber-100 text-amber-800",
+    approved: "bg-brand-primary/10 text-brand-primary",
     declined: "bg-red-100 text-red-700",
-    cancelled: "bg-gray-100 text-gray-700",
-    completed: "bg-blue-100 text-blue-700",
+    cancelled: "bg-slate-100 text-slate-700",
+    completed: "bg-sky-100 text-sky-700",
   };
 
   const updateStatus = async (status) => {
@@ -196,7 +196,7 @@ export default function BookingDetail() {
                 <div>
                   <div className="flex gap-2 mb-2">
                     <Badge className={`${statusColor[booking.status]} border-0 capitalize`}>{booking.status}</Badge>
-                    {booking.paid && <Badge className="bg-green-100 text-green-800 border-0">{t("booking.paid")}</Badge>}
+                    {booking.paid && <Badge className="bg-brand-primary/10 text-brand-primary border-0">{t("booking.paid")}</Badge>}
                     {booking.quantity > 1 && (
                       <Badge className="bg-brand-primary/10 text-brand-primary border-0" data-testid="booking-quantity-badge">
                         × {booking.quantity} {t("booking.units", "units")}

@@ -1,5 +1,5 @@
 /**
- * Locale-aware date/time formatting for ToolShare.
+ * Locale-aware date/time formatting for ShareMyKit.
  * Accepts ISO date strings (YYYY-MM-DD) or full ISO datetimes.
  */
 type AnyValue = string | null | undefined;
