@@ -109,6 +109,11 @@
     "type_all": "All",
     "type_rent": "Rent",
     "type_sell": "Buy",
+    "filters": "Filters",
+    "filters_location": "Location",
+    "filters_max_price": "Max price",
+    "filters_radius": "Distance",
+    "any": "Any",
     "no_tools_in_area": "No tools in this area",
     "no_tools_in_area_hint": "Try panning the map or widening your search radius."
   },

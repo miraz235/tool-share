@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal, Compass, Loader2, Crosshair } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Map as MapIcon, List as ListIcon, Search, SlidersHorizontal, Compass, Loader2, Crosshair, X } from "lucide-react";
 import type { Tool, ListingType } from "@/types";
 import { useCurrency } from "@/lib/currency";
 
@@ -243,14 +244,37 @@ export default function Browse() {
       ? [userLocation.lat, userLocation.lng]
       : undefined;
 
+  // Filters surfaced inside the popover — drives the active-filter badge + chips.
+  const popoverFilters = [
+    { key: "city", label: t("common.city"), value: city },
+    { key: "state", label: t("common.state", "State"), value: stateFilter },
+    { key: "postal_code", label: t("common.postal_code", "ZIP"), value: postal },
+    { key: "max_price", label: t("browse.filters_max_price", "Max price"),
+      value: maxPrice < MAX_PRICE ? `≤ ${maxPrice}` : "" },
+    { key: "radius_km", label: t("browse.filters_radius", "Distance"),
+      value: params.has("radius_km") && radiusKm !== DEFAULT_RADIUS ? `${radiusKm} km` : "" },
+  ];
+  const activeFilterCount = popoverFilters.filter((f) => !!f.value).length;
+  const activeFilterChips = popoverFilters
+    .filter((f) => !!f.value)
+    .map((f) => ({
+      ...f,
+      onClear: () => {
+        const next = new URLSearchParams(params);
+        next.delete(f.key);
+        setParams(next);
+      },
+    }));
+
   return (
     <div className="min-h-screen bg-brand-bg">
       <Header />
 
       {/* Filter bar */}
       <div className="border-b border-brand-border bg-white sticky top-16 z-30">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-sm bg-brand-subtle rounded-xl px-3">
+        <div className="max-w-[1600px] mx-auto px-6 py-3 flex flex-wrap items-center gap-2.5">
+          {/* Search */}
+          <div className="flex items-center gap-2 flex-1 min-w-[220px] max-w-md bg-brand-subtle rounded-xl px-3">
             <Search className="w-4 h-4 text-brand-muted" />
             <Input
               data-testid="browse-search-input"
@@ -261,6 +285,7 @@ export default function Browse() {
             />
           </div>
 
+          {/* Category */}
           <Select value={category} onValueChange={(v) => updateParam("category", v)}>
             <SelectTrigger className="w-44 rounded-xl" data-testid="browse-category-select">
               <SelectValue placeholder={t("common.all_categories")} />
@@ -291,83 +316,142 @@ export default function Browse() {
             ))}
           </div>
 
-          <Input
-            data-testid="browse-city-input"
-            placeholder={t("common.city")}
-            defaultValue={city}
-            onKeyDown={(e) => { if (e.key === "Enter") updateParam("city", e.currentTarget.value); }}
-            className="w-32 rounded-xl"
-          />
-          <Input
-            data-testid="browse-state-input"
-            placeholder={t("common.state", "State / Province")}
-            defaultValue={stateFilter}
-            onKeyDown={(e) => { if (e.key === "Enter") updateParam("state", e.currentTarget.value); }}
-            className="w-32 rounded-xl"
-          />
-          <Input
-            data-testid="browse-postal-input"
-            placeholder={t("common.postal_code", "ZIP / Postal")}
-            defaultValue={postal}
-            onKeyDown={(e) => { if (e.key === "Enter") updateParam("postal_code", e.currentTarget.value); }}
-            className="w-32 rounded-xl"
-          />
-
-          {/* Max price slider */}
-          <div className="flex items-center gap-2 px-2">
-            <SlidersHorizontal className="w-4 h-4 text-brand-muted" />
-            <span className="text-sm font-medium whitespace-nowrap min-w-[110px]">
-              {t("browse.max_price", { value: maxPriceUI })}
-            </span>
-            <Slider
-              value={[maxPriceUI]}
-              onValueChange={(v) => setMaxPriceUI(v[0])}
-              onValueCommit={(v) => updateParam("max_price", v[0] >= MAX_PRICE ? "" : String(v[0]))}
-              max={MAX_PRICE}
-              min={10}
-              step={10}
-              className="w-32"
-              data-testid="browse-price-slider"
-            />
-          </div>
-
-          {/* Radius slider */}
-          <div
-            className="flex items-center gap-2 px-2 border-l border-brand-border pl-3"
-            onMouseEnter={() => { if (!userLocation && !geoLoading) requestGeo(); }}
-            data-testid="browse-radius-wrap"
-          >
-            <Compass className={`w-4 h-4 ${userLocation ? "text-brand-primary" : "text-brand-muted"}`} />
-            <span
-              className="text-sm font-medium whitespace-nowrap min-w-[80px]"
-              title={!userLocation ? t("browse.radius_hint") : ""}
-            >
-              {t("browse.radius", { value: radiusUI })}
-            </span>
-            <Slider
-              value={[radiusUI]}
-              onValueChange={(v) => { setRadiusUI(v[0]); if (!userLocation && !geoLoading) requestGeo(); }}
-              onValueCommit={(v) => updateParam("radius_km", String(v[0]))}
-              max={200}
-              min={5}
-              step={5}
-              className="w-32"
-              data-testid="browse-radius-slider"
-            />
-            {!userLocation && (
+          {/* Advanced filters popover */}
+          <Popover>
+            <PopoverTrigger asChild>
               <Button
-                onClick={requestGeo}
                 variant="outline"
                 size="sm"
-                disabled={geoLoading}
-                data-testid="browse-use-location-btn"
-                className="rounded-lg border-brand-border h-8 px-2 text-xs"
+                data-testid="browse-filters-btn"
+                className="rounded-xl border-brand-border h-10 px-3 gap-2 relative"
+                onMouseEnter={() => { if (!userLocation && !geoLoading) requestGeo(); }}
               >
-                {geoLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : t("browse.use_my_location")}
+                <SlidersHorizontal className="w-4 h-4" />
+                <span className="font-medium">{t("browse.filters", "Filters")}</span>
+                {activeFilterCount > 0 && (
+                  <span
+                    data-testid="browse-active-filter-count"
+                    className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-primary text-white text-[10px] font-bold flex items-center justify-center"
+                  >
+                    {activeFilterCount}
+                  </span>
+                )}
               </Button>
-            )}
-          </div>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              sideOffset={8}
+              className="w-[360px] rounded-2xl border-brand-border p-5 space-y-5"
+              data-testid="browse-filters-popover"
+            >
+              {/* Location */}
+              <div>
+                <div className="text-[11px] uppercase tracking-wider font-bold text-brand-muted mb-2">
+                  {t("browse.filters_location", "Location")}
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    data-testid="browse-city-input"
+                    placeholder={t("common.city")}
+                    defaultValue={city}
+                    onKeyDown={(e) => { if (e.key === "Enter") updateParam("city", e.currentTarget.value); }}
+                    onBlur={(e) => { if (e.currentTarget.value !== city) updateParam("city", e.currentTarget.value); }}
+                    className="rounded-xl"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      data-testid="browse-state-input"
+                      placeholder={t("common.state", "State / Province")}
+                      defaultValue={stateFilter}
+                      onKeyDown={(e) => { if (e.key === "Enter") updateParam("state", e.currentTarget.value); }}
+                      onBlur={(e) => { if (e.currentTarget.value !== stateFilter) updateParam("state", e.currentTarget.value); }}
+                      className="rounded-xl"
+                    />
+                    <Input
+                      data-testid="browse-postal-input"
+                      placeholder={t("common.postal_code", "ZIP / Postal")}
+                      defaultValue={postal}
+                      onKeyDown={(e) => { if (e.key === "Enter") updateParam("postal_code", e.currentTarget.value); }}
+                      onBlur={(e) => { if (e.currentTarget.value !== postal) updateParam("postal_code", e.currentTarget.value); }}
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+              </div>
 
+              {/* Max price */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] uppercase tracking-wider font-bold text-brand-muted">
+                    {t("browse.filters_max_price", "Max price")}
+                  </span>
+                  <span className="text-sm font-semibold text-brand-text" data-testid="browse-max-price-value">
+                    {maxPriceUI >= MAX_PRICE ? t("browse.any", "Any") : t("browse.max_price", { value: maxPriceUI })}
+                  </span>
+                </div>
+                <Slider
+                  value={[maxPriceUI]}
+                  onValueChange={(v) => setMaxPriceUI(v[0])}
+                  onValueCommit={(v) => updateParam("max_price", v[0] >= MAX_PRICE ? "" : String(v[0]))}
+                  max={MAX_PRICE}
+                  min={10}
+                  step={10}
+                  data-testid="browse-price-slider"
+                />
+              </div>
+
+              {/* Radius */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-brand-muted">
+                    <Compass className={`w-3.5 h-3.5 ${userLocation ? "text-brand-primary" : "text-brand-muted"}`} />
+                    {t("browse.filters_radius", "Distance")}
+                  </span>
+                  <span className="text-sm font-semibold text-brand-text" data-testid="browse-radius-value">
+                    {t("browse.radius", { value: radiusUI })}
+                  </span>
+                </div>
+                <Slider
+                  value={[radiusUI]}
+                  onValueChange={(v) => { setRadiusUI(v[0]); if (!userLocation && !geoLoading) requestGeo(); }}
+                  onValueCommit={(v) => updateParam("radius_km", String(v[0]))}
+                  max={200}
+                  min={5}
+                  step={5}
+                  data-testid="browse-radius-slider"
+                />
+                {!userLocation && (
+                  <Button
+                    onClick={requestGeo}
+                    variant="outline"
+                    size="sm"
+                    disabled={geoLoading}
+                    data-testid="browse-use-location-btn"
+                    className="mt-2 rounded-lg border-brand-border h-8 px-2 text-xs w-full"
+                  >
+                    {geoLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Crosshair className="w-3 h-3 mr-1.5" />}
+                    {t("browse.use_my_location")}
+                  </Button>
+                )}
+              </div>
+
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={() => {
+                    const next = new URLSearchParams(params);
+                    ["city", "state", "postal_code", "max_price", "radius_km"].forEach((k) => next.delete(k));
+                    setParams(next);
+                  }}
+                  data-testid="browse-clear-popover-filters"
+                  className="w-full text-xs font-semibold text-brand-primary hover:text-brand-primary-hover transition-colors pt-1"
+                >
+                  {t("common.clear_filters")}
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
+
+          {/* View toggle */}
           <div className="ml-auto flex gap-1 bg-brand-subtle rounded-xl p-1">
             <button onClick={() => setView("split")} data-testid="view-split"
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${view === "split" ? "bg-white text-brand-text shadow-sm" : "text-brand-muted"}`}>
@@ -383,6 +467,31 @@ export default function Browse() {
             </button>
           </div>
         </div>
+
+        {/* Active filter pills */}
+        {activeFilterChips.length > 0 && (
+          <div className="max-w-[1600px] mx-auto px-6 pb-3 flex flex-wrap items-center gap-2" data-testid="browse-active-filters">
+            {activeFilterChips.map((chip) => (
+              <button
+                key={chip.key}
+                onClick={chip.onClear}
+                data-testid={`browse-chip-${chip.key}`}
+                className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-subtle hover:bg-brand-primary/10 border border-brand-border text-xs font-medium text-brand-text transition-colors"
+              >
+                <span className="text-brand-muted">{chip.label}:</span>
+                <span>{chip.value}</span>
+                <X className="w-3 h-3 opacity-50 group-hover:opacity-100" />
+              </button>
+            ))}
+            <button
+              onClick={() => setParams(new URLSearchParams())}
+              data-testid="browse-clear-all-chips"
+              className="text-xs font-semibold text-brand-primary hover:text-brand-primary-hover transition-colors ml-1"
+            >
+              {t("common.clear_filters")}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="max-w-[1600px] mx-auto">

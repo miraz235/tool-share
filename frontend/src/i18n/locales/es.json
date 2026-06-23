@@ -109,6 +109,11 @@
     "type_all": "Todo",
     "type_rent": "Alquilar",
     "type_sell": "Comprar",
+    "filters": "Filtros",
+    "filters_location": "Ubicación",
+    "filters_max_price": "Precio máx.",
+    "filters_radius": "Distancia",
+    "any": "Cualquiera",
     "no_tools_in_area": "Sin herramientas en esta zona",
     "no_tools_in_area_hint": "Mueve el mapa o amplía tu radio de búsqueda."
   },

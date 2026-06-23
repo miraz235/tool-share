@@ -275,5 +275,14 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ Regression: all 11 iter12 pytest + 14 cross-feature pytest pass. Manual smoke covers every route group (auth, tools, bookings, favorites, fx, ai, admin/p1, multi-unit booking creation with correct pricing math).
 - ✅ Cleaned 5 orphan bookings whose tools had been removed in earlier reseeds (was causing a stale-data test failure unrelated to the refactor).
 
+## 12o. Browse filter declutter (2026-02-12)
+- ✅ **Filter bar slimmed to essentials**: Search + Category + Rent/Buy toggle + Filters button + View toggle. Previous "everything inline" layout (8+ controls in one row) replaced.
+- ✅ **Secondary filters moved into a `Filters` popover** (`data-testid="browse-filters-popover"`): City, State/Province, ZIP/Postal, Max price slider, Distance slider + "Use my location" button.
+- ✅ **Active-filter badge** (`data-testid="browse-active-filter-count"`) on the Filters button shows the count of applied secondary filters.
+- ✅ **Active-filter chips** below the toolbar (`data-testid="browse-active-filters"`, `browse-chip-{key}`) — one-click removal of individual filters or all-at-once via "Clear filters" link.
+- ✅ Popover-internal "Clear filters" link only resets the popover's filters (city/state/postal/max_price/radius), preserving Search/Category/listing-type.
+- ✅ Translations added for new keys (`browse.filters`, `browse.filters_location`, `browse.filters_max_price`, `browse.filters_radius`, `browse.any`) in EN/FR/ES.
+- ✅ Verified live: 19 → 6 tools when filtering city=Toronto; badge shows "1"; chip "City: Toronto ×" appears under the bar.
+
 ## 13. Prioritized Backlog
 
