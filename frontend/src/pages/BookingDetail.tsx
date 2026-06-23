@@ -54,10 +54,14 @@ export default function BookingDetail() {
           (r2.data || []).forEach(rv => {
             if (rv.booking_id === id && rv.reviewer_id === user.id) targets.add(rv.target_type);
           });
-        } catch { /* ignore */ }
+        } catch (err) {
+          console.warn("[BookingDetail] fetch reviews failed for", uid, err);
+        }
       }
       setSubmittedTargets(targets);
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.warn("[BookingDetail] fetchMyReviews failed", err);
+    }
   };
 
   useEffect(() => { fetchBooking(); }, [id]);
@@ -93,7 +97,8 @@ export default function BookingDetail() {
           return;
         }
         setTimeout(poll, 2000);
-      } catch {
+      } catch (err) {
+        console.warn("[BookingDetail] payment poll failed", err);
         setPolling(false);
       }
     };

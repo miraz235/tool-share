@@ -79,7 +79,8 @@ function loadSavedFilters(): SavedFilters {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as SavedFilters) : {};
-  } catch {
+  } catch (err) {
+    console.warn("[Browse] loadSavedFilters: localStorage unavailable", err);
     return {};
   }
 }
@@ -88,8 +89,9 @@ function saveFilters(patch: SavedFilters): void {
   try {
     const prev = loadSavedFilters();
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prev, ...patch }));
-  } catch {
-    /* ignore */
+  } catch (err) {
+    // localStorage can throw in private mode or when storage is full — non-fatal.
+    console.warn("[Browse] saveFilters skipped", err);
   }
 }
 
@@ -192,9 +194,11 @@ export default function Browse() {
   };
 
   useEffect(() => {
+    // Categories don't change in this session; fetch once.
     api.get<CategoryItem[]>("/categories")
       .then((r) => setCategories(r.data))
-      .catch(() => { /* ignore */ });
+      .catch((err) => console.warn("[Browse] failed to load categories", err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

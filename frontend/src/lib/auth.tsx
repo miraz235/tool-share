@@ -58,7 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async (): Promise<void> => {
-    try { await api.post("/auth/logout"); } catch { /* ignore */ }
+    try {
+      await api.post("/auth/logout");
+    } catch (err) {
+      // Non-fatal: server may already have expired our session. We still clear local state.
+      console.warn("[auth] logout request failed (continuing locally)", err);
+    }
     setToken(null);
     setUser(null);
   };

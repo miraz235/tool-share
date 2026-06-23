@@ -140,7 +140,7 @@ class TestFollows:
 @pytest.fixture(scope="module")
 def marcus_tool_id(marcus_auth):
     """Pick (or create) a tool owned by Marcus for favorites tests."""
-    _, marcus = marcus_auth
+    marcus_token, marcus = marcus_auth
     r = requests.get(f"{API}/tools", params={"owner_id": marcus["id"]}, timeout=20)
     if r.status_code == 200 and r.json():
         return r.json()[0]["id"]
@@ -262,7 +262,7 @@ class TestAvailabilityAlertEmail:
             e for e in logs[:60]
             if e.get("to") == sara["email"] and ("Now available" in e.get("subject", "") or unique in e.get("subject", ""))
         ]
-        assert match, f"Availability alert email to Sara not found in last 60 logs"
+        assert match, "Availability alert email to Sara not found in last 60 logs"
 
         # cleanup favorite
         requests.delete(f"{API}/favorites/{tool_id}", headers=H(sara_token), timeout=20)

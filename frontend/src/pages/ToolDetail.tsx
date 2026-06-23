@@ -155,7 +155,9 @@ export default function ToolDetail() {
         setFavorite(true);
         toast.success("Saved to favorites");
       }
-    } catch {}
+    } catch (err) {
+      console.warn("[ToolDetail] favorite toggle failed", err);
+    }
   };
 
   const fallbackImg = "https://images.unsplash.com/photo-1563440205176-c565cd7302e4?w=1200&q=80&auto=format";
@@ -198,7 +200,7 @@ export default function ToolDetail() {
           {images.length > 1 && (
             <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
               {images.slice(0, 4).map((img, i) => (
-                <button key={i} onClick={() => setActiveImg(i)}
+                <button key={`${img ?? "placeholder"}-${i}`} onClick={() => setActiveImg(i)}
                   className={`aspect-square md:aspect-[16/10] rounded-xl overflow-hidden bg-brand-subtle border-2 ${i === activeImg ? 'border-brand-primary' : 'border-transparent'}`}>
                   <img src={img ? imageUrl(img) : fallbackImg} alt="" className="w-full h-full object-cover" />
                 </button>

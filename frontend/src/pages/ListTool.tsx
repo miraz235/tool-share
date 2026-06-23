@@ -134,7 +134,7 @@ export default function ListTool() {
             <p className="text-sm text-brand-muted mb-4">{t("list_tool.photos_subtitle")}</p>
             <div className="grid grid-cols-3 gap-3">
               {images.map((p, i) => (
-                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-brand-subtle border border-brand-border">
+                <div key={p} className="relative aspect-square rounded-xl overflow-hidden bg-brand-subtle border border-brand-border">
                   <img src={imageUrl(p)} alt="" className="w-full h-full object-cover" />
                   <button type="button" onClick={() => setImages(images.filter((_, x) => x !== i))}
                     className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center">

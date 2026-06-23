@@ -133,15 +133,24 @@ class TestUnavailableDates:
             datetime.fromisoformat(d)
 
     def test_endpoint_includes_approved_booking_range(self):
-        # Find an approved booking, ensure all dates in range appear
-        b = _db.bookings.find_one({"status": {"$in": ["approved", "completed"]}})
+        # Find an approved booking whose range is in the future (the endpoint
+        # only returns dates from today onward; past sold-out days are pruned).
+        today = datetime.now(timezone.utc).date()
+        b = _db.bookings.find_one({
+            "status": {"$in": ["approved", "completed"]},
+            "end_date": {"$gte": today.isoformat()},
+        })
         if not b:
-            pytest.skip("No approved booking exists")
+            pytest.skip("No future approved booking exists")
         tid = b["tool_id"]
+        # For a single-unit tool, every date in the booking range should be sold out.
+        tool = _db.tools.find_one({"id": tid}, {"_id": 0, "quantity_total": 1})
+        if int((tool or {}).get("quantity_total", 1)) > 1:
+            pytest.skip("Booking is on a multi-unit tool — partial-stock days are not blocked")
         r = requests.get(f"{API}/tools/{tid}/unavailable_dates", timeout=15)
         assert r.status_code == 200
         dates = set(r.json()["dates"])
-        s = datetime.fromisoformat(b["start_date"]).date()
+        s = max(datetime.fromisoformat(b["start_date"]).date(), today)
         e = datetime.fromisoformat(b["end_date"]).date()
         cur = s
         while cur <= e:

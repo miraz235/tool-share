@@ -166,8 +166,6 @@ class TestMessaging:
         msgs = r.json()
         assert len(msgs) >= 2
         assert all("_id" not in m for m in msgs)
-        # all messages addressed to sara should be read
-        renter_id = msgs[-1]["recipient_id"] if msgs[-1]["sender_id"] != msgs[0]["sender_id"] else None
         # easier: re-fetch unread count for sara
         unread = session.get(f"{API}/messages/unread/count", headers=H(sara_token)).json()
         assert unread["count"] == 0
@@ -341,9 +339,10 @@ class TestStripeIdentity:
 class TestEmailMockOnBooking:
     def test_booking_creates_email_log(self, session, sara_token, admin_token, marcus_tool):
         s, e = _new_dates(1500)
-        bid = session.post(f"{API}/bookings", json={
+        # Booking creation itself triggers the email_log entry we're asserting on.
+        session.post(f"{API}/bookings", json={
             "tool_id": marcus_tool["id"], "start_date": s, "end_date": e, "pickup_method": "pickup"
-        }, headers=H(sara_token)).json()["id"]
+        }, headers=H(sara_token))
         logs = session.get(f"{API}/admin/email_log", headers=H(admin_token)).json()
         # An email about a new booking should mention the booking id or the tool title in the body
         assert isinstance(logs, list) and len(logs) >= 1

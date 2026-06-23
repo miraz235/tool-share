@@ -72,7 +72,7 @@ async function detectCurrencyFromIP(): Promise<string | null> {
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrency] = useState<string>(() => {
-    try { return localStorage.getItem(STORAGE_KEY) || "USD"; } catch { return "USD"; }
+    try { return localStorage.getItem(STORAGE_KEY) || "USD"; } catch (err) { console.warn("[currency] localStorage read failed", err); return "USD"; }
   });
   const [rates, setRates] = useState<Record<string, number>>(DEFAULT_RATES);
   const [detecting, setDetecting] = useState<boolean>(false);
@@ -87,14 +87,14 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   // First-visit geo-IP detection: only runs if user hasn't picked one yet.
   useEffect(() => {
     let stored: string | null = null;
-    try { stored = localStorage.getItem(STORAGE_KEY); } catch { /* ignore */ }
+    try { stored = localStorage.getItem(STORAGE_KEY); } catch (err) { console.warn("[currency] localStorage unavailable", err); }
     if (stored) return; // user/prior visit already chose
     setDetecting(true);
     detectCurrencyFromIP()
       .then((detected) => {
         if (detected) {
           setCurrency(detected);
-          try { localStorage.setItem(STORAGE_KEY, detected); } catch { /* ignore */ }
+          try { localStorage.setItem(STORAGE_KEY, detected); } catch (err) { console.warn("[currency] localStorage write failed", err); }
         }
       })
       .finally(() => setDetecting(false));
@@ -102,7 +102,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
   const change = useCallback((code: string) => {
     setCurrency(code);
-    try { localStorage.setItem(STORAGE_KEY, code); } catch { /* ignore */ }
+    try { localStorage.setItem(STORAGE_KEY, code); } catch (err) { console.warn("[currency] failed to persist preference", err); }
   }, []);
 
   const format = useCallback((amount: number | null | undefined, opts: { maxDigits?: number; lang?: string; from?: string } = {}): string => {

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from "sonner";
 import { MessageSquare, Send } from "lucide-react";
 import { formatTime } from "@/lib/dateFormat";
 
@@ -49,7 +50,10 @@ export default function Messages() {
       setDraft("");
       const r = await api.get(`/messages/${activeId}`);
       setMessages(r.data);
-    } catch {}
+    } catch (err) {
+      console.warn("[Messages] send failed", err);
+      toast.error("Couldn't send your message — try again");
+    }
   };
 
   if (!user) return null;

@@ -64,7 +64,8 @@ export function listRecentSearches(): RecentSearch[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as RecentSearch[]) : [];
-  } catch {
+  } catch (err) {
+    console.warn("[recentSearches] read failed", err);
     return [];
   }
 }
@@ -84,8 +85,8 @@ export function saveRecentSearch(
   const next = [entry, ...existing].slice(0, MAX_RECENT);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn("[recentSearches] write failed", err);
   }
   return next;
 }
@@ -93,7 +94,7 @@ export function saveRecentSearch(
 export function clearRecentSearches(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn("[recentSearches] clear failed", err);
   }
 }

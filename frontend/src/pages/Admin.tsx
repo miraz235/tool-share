@@ -419,7 +419,7 @@ export default function Admin() {
                               <XCircle className="w-3 h-3" /> {t("verify.status_rejected", "Rejected")}
                             </Badge>
                           )}
-                          {s.admin_note && <div className="text-xs mt-1 italic text-brand-muted">"{s.admin_note}"</div>}
+                          {s.admin_note && <div className="text-xs mt-1 italic text-brand-muted">&ldquo;{s.admin_note}&rdquo;</div>}
                         </div>
                       </div>
                     </div>

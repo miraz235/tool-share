@@ -244,7 +244,7 @@ export default function AIAssistant() {
                   <h3 className="font-heading font-bold">{t("ai.safety_tips")}</h3>
                 </div>
                 <ul className="space-y-1.5 text-sm text-brand-muted list-disc list-inside">
-                  {result.safety_tips.map((tip, i) => <li key={i}>{tip}</li>)}
+                  {result.safety_tips.map((tip, i) => <li key={`${tip.slice(0, 24)}-${i}`}>{tip}</li>)}
                 </ul>
               </div>
             )}

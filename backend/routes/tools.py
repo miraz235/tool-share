@@ -56,6 +56,90 @@ async def create_tool(payload: ToolIn, user: dict = Depends(current_user)):
     return doc
 
 
+async def _build_tools_filter(
+    q, category, listing_type, min_price, max_price,
+    city, state, postal_code, owner_id, featured_only, verified_only,
+    apply_price_filter_in_db: bool,
+) -> dict:
+    """Translate query params into a Mongo filter dict."""
+    filt: dict = {"is_available": True, "is_sold": {"$ne": True}}
+    if q:
+        filt["$or"] = [
+            {"title": {"$regex": q, "$options": "i"}},
+            {"description": {"$regex": q, "$options": "i"}},
+        ]
+    if category:
+        filt["category"] = category
+    if listing_type and listing_type in ("rent", "sell"):
+        filt["listing_type"] = {"$in": [listing_type, "both"]}
+    if apply_price_filter_in_db:
+        if min_price is not None:
+            filt["daily_price"] = {"$gte": min_price}
+        if max_price is not None:
+            filt.setdefault("daily_price", {})["$lte"] = max_price
+    if city:
+        filt["location.city"] = {"$regex": f"^{city}$", "$options": "i"}
+    if state:
+        filt["location.state"] = {"$regex": f"^{state}", "$options": "i"}
+    if postal_code:
+        filt["location.postal_code"] = {"$regex": f"^{postal_code}", "$options": "i"}
+    if owner_id:
+        filt["owner_id"] = owner_id
+    if featured_only:
+        filt["is_featured"] = True
+    if verified_only:
+        verified_owner_ids = await db.users.distinct("id", {"is_verified": True})
+        filt["owner_id"] = {"$in": verified_owner_ids}
+    return filt
+
+
+async def _stamp_owner_verified(tools: list[dict]) -> None:
+    """Mutate each tool dict to add `owner_verified` boolean."""
+    owner_ids = list({t.get("owner_id") for t in tools if t.get("owner_id")})
+    if not owner_ids:
+        return
+    verified_ids = set(await db.users.distinct(
+        "id", {"id": {"$in": owner_ids}, "is_verified": True}
+    ))
+    for t in tools:
+        t["owner_verified"] = t.get("owner_id") in verified_ids
+
+
+def _filter_by_viewer_price(
+    tools: list[dict], viewer_currency: str, min_price, max_price
+) -> list[dict]:
+    """Re-filter results when the caller wants prices in their preferred currency."""
+    vc = viewer_currency.upper()
+    viewer_rate = _DEFAULT_RATES.get(vc, 1.0)
+    out: List[dict] = []
+    for tool in tools:
+        tc = (tool.get("price_currency") or "USD").upper()
+        tool_rate = _DEFAULT_RATES.get(tc, 1.0)
+        price_in_viewer = float(tool.get("daily_price", 0)) * (viewer_rate / tool_rate)
+        if min_price is not None and price_in_viewer < min_price:
+            continue
+        if max_price is not None and price_in_viewer > max_price:
+            continue
+        out.append(tool)
+    return out
+
+
+def _filter_by_radius(tools: list[dict], lat: float, lng: float, radius_km: float) -> list[dict]:
+    """Drop tools outside `radius_km` and sort by distance (featured first)."""
+    out: list[dict] = []
+    for tool in tools:
+        tl = tool.get("location", {})
+        try:
+            d = haversine_km(lat, lng, tl["lat"], tl["lng"])
+        except Exception:
+            d = 99999
+        if d <= radius_km:
+            tool["distance_km"] = round(d, 1)
+            out.append(tool)
+    out.sort(key=lambda x: (not x.get("is_featured", False), x.get("distance_km", 999)))
+    return out
+
+
 @router.get("/tools")
 async def list_tools(
     q: Optional[str] = None,
@@ -75,78 +159,23 @@ async def list_tools(
     viewer_currency: Optional[str] = None,
     limit: int = 60,
 ):
-    filt = {"is_available": True, "is_sold": {"$ne": True}}
-    if q:
-        filt["$or"] = [
-            {"title": {"$regex": q, "$options": "i"}},
-            {"description": {"$regex": q, "$options": "i"}},
-        ]
-    if category:
-        filt["category"] = category
-    if listing_type and listing_type in ("rent", "sell"):
-        filt["listing_type"] = {"$in": [listing_type, "both"]}
     # Currency-aware price filter happens in Python below; otherwise DB filter is fine.
     apply_price_filter_in_db = viewer_currency is None
-    if apply_price_filter_in_db:
-        if min_price is not None:
-            filt["daily_price"] = {"$gte": min_price}
-        if max_price is not None:
-            filt.setdefault("daily_price", {})["$lte"] = max_price
-    if city:
-        filt["location.city"] = {"$regex": f"^{city}$", "$options": "i"}
-    if state:
-        filt["location.state"] = {"$regex": f"^{state}", "$options": "i"}
-    if postal_code:
-        filt["location.postal_code"] = {"$regex": f"^{postal_code}", "$options": "i"}
-    if owner_id:
-        filt["owner_id"] = owner_id
-    if featured_only:
-        filt["is_featured"] = True
-    if verified_only:
-        # Restrict to tools owned by verified users.
-        verified_owner_ids = await db.users.distinct("id", {"is_verified": True})
-        filt["owner_id"] = {"$in": verified_owner_ids}
-
+    filt = await _build_tools_filter(
+        q, category, listing_type, min_price, max_price,
+        city, state, postal_code, owner_id, featured_only, verified_only,
+        apply_price_filter_in_db,
+    )
     cur = db.tools.find(filt, {"_id": 0}).sort([("is_featured", -1), ("created_at", -1)]).limit(limit)
     tools = await cur.to_list(length=limit)
 
-    # Stamp a quick verified flag on each tool for card-level rendering.
-    owner_ids_in_results = list({t.get("owner_id") for t in tools if t.get("owner_id")})
-    if owner_ids_in_results:
-        verified_ids = set(await db.users.distinct(
-            "id", {"id": {"$in": owner_ids_in_results}, "is_verified": True}
-        ))
-        for t in tools:
-            t["owner_verified"] = t.get("owner_id") in verified_ids
+    await _stamp_owner_verified(tools)
 
     if viewer_currency and (min_price is not None or max_price is not None):
-        vc = viewer_currency.upper()
-        viewer_rate = _DEFAULT_RATES.get(vc, 1.0)
-        filtered: List[dict] = []
-        for tool in tools:
-            tc = (tool.get("price_currency") or "USD").upper()
-            tool_rate = _DEFAULT_RATES.get(tc, 1.0)
-            price_in_viewer = float(tool.get("daily_price", 0)) * (viewer_rate / tool_rate)
-            if min_price is not None and price_in_viewer < min_price:
-                continue
-            if max_price is not None and price_in_viewer > max_price:
-                continue
-            filtered.append(tool)
-        tools = filtered
+        tools = _filter_by_viewer_price(tools, viewer_currency, min_price, max_price)
 
     if lat is not None and lng is not None:
-        result = []
-        for tool in tools:
-            tl = tool.get("location", {})
-            try:
-                d = haversine_km(lat, lng, tl["lat"], tl["lng"])
-            except Exception:
-                d = 99999
-            if d <= radius_km:
-                tool["distance_km"] = round(d, 1)
-                result.append(tool)
-        result.sort(key=lambda x: (not x.get("is_featured", False), x.get("distance_km", 999)))
-        return result
+        return _filter_by_radius(tools, lat, lng, radius_km)
     return tools
 
 
@@ -256,36 +285,10 @@ async def my_tools(user: dict = Depends(current_user)):
     return await cur.to_list(length=200)
 
 
-@router.get("/my/inventory")
-async def my_inventory(days: int = 30, user: dict = Depends(current_user)):
-    """Per-day stock heatmap for every tool the owner has.
-
-    Returns a list of {tool_id, title, quantity_total, days: [{date, booked, remaining}]}.
-    Used by the owner inventory dashboard to spot bottlenecks.
-    """
-    days = max(7, min(90, days))
-    today = datetime.now(timezone.utc).date()
-    horizon = today + timedelta(days=days - 1)
-    tools = await db.tools.find(
-        {"owner_id": user["id"]},
-        {"_id": 0, "id": 1, "title": 1, "images": 1, "quantity_total": 1, "is_available": 1, "unavailable_dates": 1, "daily_price": 1, "price_currency": 1}
-    ).sort("created_at", -1).to_list(length=200)
-
-    if not tools:
-        return {"days": [d.isoformat() for d in (today + timedelta(days=i) for i in range(days))], "tools": []}
-
-    tool_ids = [t["id"] for t in tools]
-    bookings = await db.bookings.find(
-        {
-            "tool_id": {"$in": tool_ids},
-            "status": {"$in": ["pending", "approved"]},
-            "end_date": {"$gte": today.isoformat()},
-            "start_date": {"$lte": horizon.isoformat()},
-        },
-        {"_id": 0, "tool_id": 1, "start_date": 1, "end_date": 1, "quantity": 1, "status": 1}
-    ).to_list(length=2000)
-
-    # Build per-tool booked map
+def _aggregate_booked_per_tool(
+    bookings: list[dict], tool_ids: list[str], today, horizon
+) -> dict[str, dict[str, int]]:
+    """Build {tool_id: {iso_date: total_qty}} for the date window."""
     by_tool: dict[str, dict[str, int]] = {tid: {} for tid in tool_ids}
     for b in bookings:
         try:
@@ -300,34 +303,71 @@ async def my_inventory(days: int = 30, user: dict = Depends(current_user)):
             iso = d.isoformat()
             by_tool[b["tool_id"]][iso] = by_tool[b["tool_id"]].get(iso, 0) + qty
             d = d + timedelta(days=1)
+    return by_tool
+
+
+def _build_day_rows(tool: dict, booked_by_date: dict[str, int], date_seq: list[str]) -> list[dict]:
+    """Per-day stock cells for a single tool."""
+    qty_total = int(tool.get("quantity_total") or 1)
+    owner_blocked = set(tool.get("unavailable_dates", []) or [])
+    rows = []
+    for iso in date_seq:
+        booked = booked_by_date.get(iso, 0)
+        owner_block = iso in owner_blocked
+        remaining = 0 if owner_block else max(0, qty_total - booked)
+        rows.append({
+            "date": iso,
+            "booked": booked,
+            "remaining": remaining,
+            "owner_blocked": owner_block,
+        })
+    return rows
+
+
+@router.get("/my/inventory")
+async def my_inventory(days: int = 30, user: dict = Depends(current_user)):
+    """Per-day stock heatmap for every tool the owner has.
+
+    Returns {days: [iso×N], tools: [{id, title, quantity_total, days: [...]}]}.
+    Used by the owner inventory dashboard to spot bottlenecks.
+    """
+    days = max(7, min(90, days))
+    today = datetime.now(timezone.utc).date()
+    horizon = today + timedelta(days=days - 1)
+    tools = await db.tools.find(
+        {"owner_id": user["id"]},
+        {"_id": 0, "id": 1, "title": 1, "images": 1, "quantity_total": 1, "is_available": 1, "unavailable_dates": 1, "daily_price": 1, "price_currency": 1}
+    ).sort("created_at", -1).to_list(length=200)
 
     date_seq = [(today + timedelta(days=i)).isoformat() for i in range(days)]
-    result_tools = []
-    for t in tools:
-        qty_total = int(t.get("quantity_total") or 1)
-        owner_blocked = set(t.get("unavailable_dates", []) or [])
-        rows = []
-        for iso in date_seq:
-            booked = by_tool[t["id"]].get(iso, 0)
-            owner_block = iso in owner_blocked
-            remaining = 0 if owner_block else max(0, qty_total - booked)
-            rows.append({
-                "date": iso,
-                "booked": booked,
-                "remaining": remaining,
-                "owner_blocked": owner_block,
-            })
-        result_tools.append({
+    if not tools:
+        return {"days": date_seq, "tools": []}
+
+    tool_ids = [t["id"] for t in tools]
+    bookings = await db.bookings.find(
+        {
+            "tool_id": {"$in": tool_ids},
+            "status": {"$in": ["pending", "approved"]},
+            "end_date": {"$gte": today.isoformat()},
+            "start_date": {"$lte": horizon.isoformat()},
+        },
+        {"_id": 0, "tool_id": 1, "start_date": 1, "end_date": 1, "quantity": 1, "status": 1}
+    ).to_list(length=2000)
+    by_tool = _aggregate_booked_per_tool(bookings, tool_ids, today, horizon)
+
+    result_tools = [
+        {
             "id": t["id"],
             "title": t["title"],
             "image": (t.get("images") or [None])[0],
-            "quantity_total": qty_total,
+            "quantity_total": int(t.get("quantity_total") or 1),
             "is_available": t.get("is_available", True),
             "daily_price": t.get("daily_price"),
             "price_currency": t.get("price_currency", "USD"),
-            "days": rows,
-        })
-
+            "days": _build_day_rows(t, by_tool[t["id"]], date_seq),
+        }
+        for t in tools
+    ]
     return {"days": date_seq, "tools": result_tools}
 
 

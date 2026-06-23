@@ -1,4 +1,8 @@
-"""Seed admin user for ToolShare."""
+"""Seed admin user for ShareMyKit.
+
+Reads credentials from env vars to avoid hard-coding secrets in source.
+Set ADMIN_EMAIL + ADMIN_PASSWORD in /app/backend/.env before running.
+"""
 import os
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -13,8 +17,16 @@ from pathlib import Path
 load_dotenv(Path(__file__).parent / '.env')
 db = AsyncIOMotorClient(os.environ['MONGO_URL'])[os.environ['DB_NAME']]
 
-ADMIN_EMAIL = "admin@toolshare.demo"
-ADMIN_PASSWORD = "Admin1234!"
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@toolshare.demo")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+
+if not ADMIN_PASSWORD:
+    # Fail loud at boot rather than silently shipping a default.
+    raise SystemExit(
+        "ADMIN_PASSWORD env var is required. "
+        "Set it in /app/backend/.env, then re-run: python seed_admin.py"
+    )
+
 
 async def main():
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
@@ -27,7 +39,7 @@ async def main():
         "id": uid,
         "email": ADMIN_EMAIL,
         "password_hash": bcrypt.hashpw(ADMIN_PASSWORD.encode(), bcrypt.gensalt()).decode(),
-        "name": "ToolShare Admin",
+        "name": "ShareMyKit Admin",
         "picture": None,
         "city": None,
         "bio": "Platform administrator",
@@ -38,7 +50,7 @@ async def main():
         "is_admin": True,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
-    print(f"Created admin user: {ADMIN_EMAIL} / {ADMIN_PASSWORD} (id={uid})")
+    print(f"Created admin user: {ADMIN_EMAIL} (id={uid})")
 
 if __name__ == "__main__":
     asyncio.run(main())
