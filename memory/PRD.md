@@ -304,5 +304,31 @@ A trusted local marketplace where neighbours rent tools to each other — turnin
 - ✅ Debounced 1.2s after each search so we don't snapshot every keystroke. Survives page refresh (localStorage). Empty/blank searches are skipped.
 - ✅ Translations: `browse.recent_searches` in EN/FR/ES.
 
+## 12r. ShareMyKit rebrand + professional theme + hover fix (2026-02-12)
+- ✅ **Brand renamed** "ToolShare" → "ShareMyKit" across all visible UI: Header logo, Footer, EN/FR/ES i18n locales, VerifyIdentityDialog, types, dateFormat helper, browser title (`ShareMyKit — Rent tools from your neighbors`), meta description. Backend collections, env DB_NAME, and demo user emails kept stable (still `@toolshare.demo`).
+- ✅ **New professional palette — no green**:
+  - Primary: `#1E3A5F` (deep navy) — replaces forest green `#2D5A4C`
+  - Primary-hover: `#172E4D`
+  - Secondary: `#C2410C` (refined burnt-orange) — replaces `#D36135`
+  - Background: `#F8FAFC` (cool slate-50) — replaces warm cream `#FDFCF7`
+  - Text/Muted/Border/Subtle: slate-900 / slate-600 / slate-200 / slate-100
+  - Map markers, status badges, "Verified" badge, Browse "Verified only" toggle all updated to brand-primary (navy) instead of green.
+- ✅ **Fixed shadcn hover bug**: `--accent: 18 65% 51%` (orange) caused invisible text on Select/Dropdown item hovers when the item text was also orange. Replaced with `--accent: 210 40% 92%` (soft slate) + dark foreground — readable across every shadcn primitive (Select, DropdownMenu, Command, Menubar).
+- ✅ Verified live: Browse renders new theme cleanly; tool cards show navy "Verified" badge; map markers + booking status badges use navy; document title shows ShareMyKit; no green in `view-source`.
+
+## 12s. Owner Inventory dashboard (2026-02-12)
+- ✅ **Backend (`/app/backend/routes/tools.py`)**:
+  - `GET /api/my/inventory?days=7..90` — returns 21-day default heatmap. Per tool: `{id, title, image, quantity_total, is_available, daily_price, days: [{date, booked, remaining, owner_blocked} × N]}`. Counts pending + approved bookings.
+  - `POST /api/tools/{tool_id}/block_dates` — XOR toggle of dates against `tool.unavailable_dates` (dates already blocked get unblocked; new dates get added). Owner-only.
+  - `PUT /api/tools/{tool_id}/availability?is_available=true|false` — quick visibility toggle without delete.
+- ✅ **Frontend (`/app/frontend/src/pages/Inventory.tsx`)**:
+  - New `/inventory` route — auto-redirects to /login when signed out.
+  - KPI strip (4 cards): **Utilisation %**, Units booked, Low-stock days (≤30% capacity), Sold-out days.
+  - Sticky-header heatmap table — left col shows tool image + title + qty badge + live/hidden toggle (`data-testid="inventory-toggle-availability-{tool_id}"`). 21 day-columns with color-coded cells: full (subtle) → low (orange-30) → critical (orange-70) → sold-out (red) → blocked-by-owner (slate-700).
+  - Click any cell to toggle owner stock-out (`data-testid="inventory-cell-{tool_id}-{date}"`, with `data-remaining` and `data-blocked` attrs for testability). Optimistic spinner during request.
+  - Legend strip (`data-testid="inventory-legend"`) above the table for the 5 color states.
+  - Dashboard "My Listings" tab gets an "Inventory dashboard" link (`data-testid="dashboard-inventory-link"`) above the grid; hidden in empty state.
+- ✅ Tests (iter14): 8/8 backend pytest pass · 9/9 frontend E2E flows pass · 100% backend, ~95% frontend success.
+
 ## 13. Prioritized Backlog
 
